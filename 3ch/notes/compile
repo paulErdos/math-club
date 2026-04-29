@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Ensure the user knows how to use
+if [ $# -ne 1 ]; then
+    echo 'usage: compile foo.md'
+    exit 1
+fi
+
+# Make sure the file doesn't already exist
+if [ ! -e $1 ]; then
+    echo 'Halting: file "'$1'" does not exist.'
+    exit 2
+fi
+
+name=$(echo $1 | sed 's,\([^\.]\)\..*$,\1,')
+
+pandoc $1 -o $name.pdf
