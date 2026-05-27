@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Möbius Transform - 1200px Canvas</title>
+    <style>
+        * {
+            user-select: none;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0c12;
+            font-family: 'Segoe UI', 'Monaco', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #11131f;
+            border-radius: 28px;
+            padding: 20px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.6);
+            border: 1px solid #2a2e44;
+            max-width: 98vw;
+            overflow-x: auto;
+        }
+        .canvas-panel {
+            display: flex;
+            justify-content: center;
+        }
+        canvas {
+            background: #03050a;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            display: block;
+            border: 1px solid #2f354c;
+            cursor: crosshair;
+            width: 100%;
+            height: auto;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .param-grid {
+            background: #0f111c;
+            border-radius: 20px;
+            padding: 12px 18px;
+            flex: 2;
+            min-width: 280px;
+            border: 1px solid #262c42;
+        }
+        .param-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .param-row label {
+            color: #b9c7ff;
+            font-weight: 600;
+            font-size: 0.8rem;
+            width: 50px;
+        }
+        input[type="range"] {
+            flex: 1;
+            min-width: 100px;
+            background: #1e2237;
+            height: 4px;
+            border-radius: 4px;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #7c93ff;
+            cursor: grab;
+            border: none;
+        }
+        input[type="range"]:active::-webkit-slider-thumb {
+            cursor: grabbing;
+        }
+        .param-value {
+            background: #01010c;
+            color: #adc8ff;
+            font-family: monospace;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            width: 55px;
+            text-align: center;
+            border: 1px solid #2c3150;
+        }
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        button {
+            background: #1e243f;
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            cursor: pointer;
+            transition: 0.05s linear;
+            border-bottom: 1px solid #2f3a60;
+        }
+        button:active {
+            transform: scale(0.96);
+        }
+        .primary-btn {
+            background: #2b4680;
+            border-bottom-color: #7c9eff;
+        }
+        .danger-btn {
+            background: #3a1f2c;
+            border-bottom-color: #b44;
+        }
+        select {
+            background: #12162b;
+            color: #d9e2ff;
+            border: 1px solid #2d3470;
+            border-radius: 24px;
+            padding: 6px 12px;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .seed-panel {
+            flex: 1.2;
+            min-width: 280px;
+        }
+        .seed-list {
+            max-height: 260px;
+            overflow-y: auto;
+            background: #080b14;
+            border-radius: 16px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        .seed-item {
+            background: #0f1222;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 20px;
+            border-left: 3px solid #4d7eff;
+            font-size: 11px;
+        }
+        .seed-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .seed-coord-input {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: #00000066;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .seed-coord-input input {
+            width: 60px;
+            background: #01010c;
+            border: 1px solid #2c3150;
+            color: #b9c7ff;
+            border-radius: 16px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+        .radius-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .radius-control input[type="range"] {
+            width: 80px;
+            cursor: grab;
+        }
+        .del-seed {
+            background: #481e2c;
+            padding: 2px 10px;
+            font-size: 11px;
+        }
+        .status {
+            color: #7d94db;
+            font-size: 0.7rem;
+            margin-top: 8px;
+            text-align: center;
+        }
+        h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.9rem;
+            color: #cfdcff;
+        }
+        .radio-group {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            color: #b9c7ff;
+            cursor: pointer;
+        }
+        .number-input {
+            background: #01010c;
+            border: 1px solid #2c3150;
+            color: #adc8ff;
+            border-radius: 20px;
+            padding: 4px 10px;
+            width: 80px;
+            font-family: monospace;
+            text-align: center;
+        }
+        .iter-badge {
+            background: #1e2a3a;
+            border-radius: 20px;
+            padding: 2px 12px;
+            font-size: 0.75rem;
+            color: #ffd966;
+        }
+        @media (max-width: 1400px) {
+            .container { padding: 10px; }
+            canvas { max-width: 100%; height: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="canvas-panel">
+        <canvas id="mobiusCanvas" width="1200" height="1200" style="width:1200px;height:1200px; max-width:100%; height:auto;"></canvas>
+    </div>
+
+    <div class="controls">
+        <!-- LEFT: Möbius matrix & iteration controls -->
+        <div class="param-grid">
+            <h3>⚡ MÖBIUS MATRIX (a,b,c,d)</h3>
+            <div class="param-row"><label>a_re</label><input type="range" id="a_re" min="-2.5" max="2.5" step="0.01" value="1.2"><span id="a_re_val" class="param-value">1.20</span><label>a_im</label><input type="range" id="a_im" min="-2" max="2" step="0.01" value="0"><span id="a_im_val" class="param-value">0.00</span></div>
+            <div class="param-row"><label>b_re</label><input type="range" id="b_re" min="-2.5" max="2.5" step="0.01" value="0.5"><span id="b_re_val" class="param-value">0.50</span><label>b_im</label><input type="range" id="b_im" min="-2" max="2" step="0.01" value="0.3"><span id="b_im_val" class="param-value">0.30</span></div>
+            <div class="param-row"><label>c_re</label><input type="range" id="c_re" min="-2" max="2" step="0.01" value="0"><span id="c_re_val" class="param-value">0.00</span><label>c_im</label><input type="range" id="c_im" min="-2" max="2" step="0.01" value="0"><span id="c_im_val" class="param-value">0.00</span></div>
+            <div class="param-row"><label>d_re</label><input type="range" id="d_re" min="-2.5" max="2.5" step="0.01" value="0.8"><span id="d_re_val" class="param-value">0.80</span><label>d_im</label><input type="range" id="d_im" min="-2" max="2" step="0.01" value="0"><span id="d_im_val" class="param-value">0.00</span></div>
+            <div class="param-row">
+                <label>TYPE</label>
+                <select id="transformType">
+                    <option value="hyperbolic">HYPERBOLIC (k=2.8, fix ±1)</option>
+                    <option value="elliptic">ELLIPTIC (θ=π/7, fix ±0.8j)</option>
+                    <option value="loxodromic">LOXODROMIC (k=1.35, θ=π/7)</option>
+                    <option value="custom">CUSTOM (keep matrix)</option>
+                </select>
+                <button id="applyTypeBtn" class="primary-btn">APPLY</button>
+            </div>
+            
+            <div class="param-row">
+                <label>MAX ITER</label>
+                <input type="number" id="maxIterInput" class="number-input" min="1" max="50" value="5" step="1" style="width:80px">
+                <span style="color:#7c93ff;">max iterations</span>
+                <button id="resetIterBtn" style="background:#2a3a50;">↺ Reset Iter</button>
+            </div>
+            <div class="param-row">
+                <label>DIRECTION</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="direction" value="both" checked> Both</label>
+                    <label><input type="radio" name="direction" value="forward"> Forward only</label>
+                    <label><input type="radio" name="direction" value="backward"> Backward only</label>
+                </div>
+            </div>
+            <div class="param-row">
+                <label>FADE</label><input type="range" id="alphaMin" min="0.05" max="0.9" step="0.01" value="0.18"><span id="alphaMinVal" class="param-value">0.18</span>
+            </div>
+            <div class="param-row">
+                <label>▶ SPEED</label><input type="range" id="deltaMs" min="40" max="700" step="10" value="200"><span id="deltaVal" class="param-value">200ms</span>
+                <button id="playBtn" class="primary-btn">▶ PLAY</button>
+                <button id="stepBtn">⏯ STEP</button>
+                <span class="iter-badge" id="currentIterDisplay">Iter: 0 / 5</span>
+            </div>
+        </div>
+
+        <!-- RIGHT: Seed editor -->
+        <div class="param-grid seed-panel">
+            <h3>🎯 SEED CIRCLES (click to add, drag to move)</h3>
+            <div class="button-group">
+                <button id="resetCanvasBtn" class="danger-btn">🗑 RESET ALL SEEDS</button>
+                <button id="defaultSeedsBtn">✨ DEFAULT SEEDS</button>
+            </div>
+            <div class="seed-list" id="seedList"></div>
+            <div class="status">● Ticks rotate with transform (backward rotates opposite direction)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- utilities ----------
+        const canvas = document.getElementById('mobiusCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = 1200, height = 1200;
+        let xlim = [-3.2, 3.2];
+        let ylim = [-3.2, 3.2];
+
+        function complexMul(z1, z2) { return {re: z1.re*z2.re - z1.im*z2.im, im: z1.re*z2.im + z1.im*z2.re}; }
+        function complexAdd(z1, z2) { return {re: z1.re+z2.re, im: z1.im+z2.im}; }
+        function complexDiv(z1, z2) {
+            let denom = z2.re*z2.re + z2.im*z2.im;
+            if(denom === 0) return {re: Infinity, im: Infinity};
+            return {re: (z1.re*z2.re + z1.im*z2.im)/denom, im: (z1.im*z2.re - z1.re*z2.im)/denom};
+        }
+        function complexAbs(z) { return Math.hypot(z.re, z.im); }
+        function complexExpI(theta) { return {re: Math.cos(theta), im: Math.sin(theta)}; }
+        
+        function mobiusMap(z, a,b,c,d) {
+            let az = complexMul(a, z);
+            let num = complexAdd(az, b);
+            let cz = complexMul(c, z);
+            let den = complexAdd(cz, d);
+            return complexDiv(num, den);
+        }
+
+        // Circle with reference point
+        function transformCircleWithRef(circle, a,b,c,d) {
+            let {center, radius, refPoint} = circle;
+            const baseAngle = Math.PI/12;
+            let angles = [baseAngle, baseAngle + 2*Math.PI/3, baseAngle + 4*Math.PI/3];
+            let pts = angles.map(ang => ({re: center.re + radius*Math.cos(ang), im: center.im + radius*Math.sin(ang)}));
+            let pole = null;
+            if(complexAbs(c) > 1e-12) {
+                let d_val = {re: d.re, im: d.im};
+                let cneg = {re: -c.re, im: -c.im};
+                pole = complexDiv(d_val, cneg);
+            }
+            if(pole && isFinite(pole.re)) {
+                for(let i=0;i<pts.length;i++) {
+                    let dz = Math.hypot(pts[i].re - pole.re, pts[i].im - pole.im);
+                    if(dz < radius * 0.08) {
+                        angles[i] += Math.PI/5;
+                        pts[i] = {re: center.re + radius*Math.cos(angles[i]), im: center.im + radius*Math.sin(angles[i])};
+                    }
+                }
+            }
+            let mappedPts = pts.map(p => mobiusMap(p, a,b,c,d));
+            if(!mappedPts.every(p => isFinite(p.re) && isFinite(p.im))) return null;
+            const newCirc = circleFromThree(mappedPts[0], mappedPts[1], mappedPts[2]);
+            if(!newCirc) return null;
+            if(!isFinite(newCirc.radius) || newCirc.radius > 1e5 || newCirc.radius < 1e-12) return null;
+            
+            let newRef = mobiusMap(refPoint, a,b,c,d);
+            if(!isFinite(newRef.re) || !isFinite(newRef.im)) return null;
+            
+            return {
+                center: newCirc.center,
+                radius: newCirc.radius,
+                refPoint: newRef
+            };
+        }
+        
+        function circleFromThree(p1,p2,p3) {
+            const x1=p1.re, y1=p1.im, x2=p2.re, y2=p2.im, x3=p3.re, y3=p3.im;
+            const D = 2.0 * (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2));
+            if(Math.abs(D) < 1e-12) return null;
+            const r1sq = x1*x1 + y1*y1;
+            const r2sq = x2*x2 + y2*y2;
+            const r3sq = x3*x3 + y3*y3;
+            const ux = (r1sq*(y2 - y3) + r2sq*(y3 - y1) + r3sq*(y1 - y2)) / D;
+            const uy = (r1sq*(x3 - x2) + r2sq*(x1 - x3) + r3sq*(x2 - x1)) / D;
+            const center = {re: ux, im: uy};
+            const radius = Math.hypot(center.re - x1, center.im - y1);
+            return {center, radius};
+        }
+
+        function mobiusInverse(a,b,c,d) {
+            let det_re = a.re*d.re - a.im*d.im - (b.re*c.re - b.im*c.im);
+            let det_im = a.re*d.im + a.im*d.re - (b.re*c.im + b.im*c.re);
+            let det2 = det_re*det_re + det_im*det_im;
+            if(det2 === 0) return {a:{re:1,im:0}, b:{re:0,im:0}, c:{re:0,im:0}, d:{re:1,im:0}};
+            let a_inv = {re: d.re/det2, im: -d.im/det2};
+            let b_inv = {re: -b.re/det2, im: b.im/det2};
+            let c_inv = {re: -c.re/det2, im: c.im/det2};
+            let d_inv = {re: a.re/det2, im: -a.im/det2};
+            return {a:a_inv, b:b_inv, c:c_inv, d:d_inv};
+        }
+
+        // conjugate presets
+        function composeMobius(a1,b1,c1,d1, a2,b2,c2,d2) {
+            let a = complexAdd(complexMul(a1,a2), complexMul(b1,c2));
+            let b = complexAdd(complexMul(a1,b2), complexMul(b1,d2));
+            let c = complexAdd(complexMul(c1,a2), complexMul(d1,c2));
+            let d = complexAdd(complexMul(c1,b2), complexMul(d1,d2));
+            return {a,b,c,d};
+        }
+        function conjugatePreset(M0, p, q) {
+            let S = {a: q, b: p, c: {re:1,im:0}, d: {re:1,im:0}};
+            let S_inv = mobiusInverse(S.a, S.b, S.c, S.d);
+            let M1 = composeMobius(S.a, S.b, S.c, S.d, M0.a, M0.b, M0.c, M0.d);
+            return composeMobius(M1.a, M1.b, M1.c, M1.d, S_inv.a, S_inv.b, S_inv.c, S_inv.d);
+        }
+        function getHyperbolicPreset() {
+            let k = 2.8;
+            let M0 = {a:{re:k,im:0}, b:{re:0,im:0}, c:{re:0,im:0}, d:{re:1,im:0}};
+            let p = {re:-1,im:0}, q = {re:1,im:0};
+            return conjugatePreset(M0, p, q);
+        }
+        function getEllipticPreset() {
+            let theta = Math.PI/7;
+            let M0 = {a:complexExpI(theta), b:{re:0,im:0}, c:{re:0,im:0}, d:{re:1,im:0}};
+            let p = {re:0,im:-0.8}, q = {re:0,im:0.8};
+            return conjugatePreset(M0, p, q);
+        }
+        function getLoxodromicPreset() {
+            let k = 1.35, theta = Math.PI/7;
+            let mult = {re: k * Math.cos(theta), im: k * Math.sin(theta)};
+            let M0 = {a:mult, b:{re:0,im:0}, c:{re:0,im:0}, d:{re:1,im:0}};
+            let p = {re:-0.5, im:-0.5}, q = {re:0.8, im:0.6};
+            return conjugatePreset(M0, p, q);
+        }
+
+        // ---------- global state ----------
+        let mobius = {
+            a: {re: 1.2, im: 0},
+            b: {re: 0.5, im: 0.3},
+            c: {re: 0, im: 0},
+            d: {re: 0.8, im: 0}
+        };
+        let seeds = [];
+        let maxIter = 5;
+        let currentIter = 0;
+        let alphaMin = 0.18;
+        let direction = "both";
+        const fwdColor = "#4d7eff";
+        const bwdColor = "#fdbe5c";
+        const seedColor = "#f2f2f2";
+        
+        let animationInterval = null;
+        let playing = false;
+        
+        let dragIndex = -1;
+        let dragActive = false;
+        let dragPerformed = false;
+        
+        // UI elements
+        const a_re_slider = document.getElementById('a_re');
+        const a_im_slider = document.getElementById('a_im');
+        const b_re_slider = document.getElementById('b_re');
+        const b_im_slider = document.getElementById('b_im');
+        const c_re_slider = document.getElementById('c_re');
+        const c_im_slider = document.getElementById('c_im');
+        const d_re_slider = document.getElementById('d_re');
+        const d_im_slider = document.getElementById('d_im');
+        const maxIterInput = document.getElementById('maxIterInput');
+        const alphaSlider = document.getElementById('alphaMin');
+        const alphaMinVal = document.getElementById('alphaMinVal');
+        const deltaSlider = document.getElementById('deltaMs');
+        const deltaVal = document.getElementById('deltaVal');
+        const playBtn = document.getElementById('playBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const resetCanvasBtn = document.getElementById('resetCanvasBtn');
+        const defaultSeedsBtn = document.getElementById('defaultSeedsBtn');
+        const applyTypeBtn = document.getElementById('applyTypeBtn');
+        const typeSelect = document.getElementById('transformType');
+        const resetIterBtn = document.getElementById('resetIterBtn');
+        const currentIterSpan = document.getElementById('currentIterDisplay');
+        const radioBoth = document.querySelector('input[value="both"]');
+        const radioForward = document.querySelector('input[value="forward"]');
+        const radioBackward = document.querySelector('input[value="backward"]');
+        
+        function updateMatrixFromSliders() {
+            mobius.a = {re: parseFloat(a_re_slider.value), im: parseFloat(a_im_slider.value)};
+            mobius.b = {re: parseFloat(b_re_slider.value), im: parseFloat(b_im_slider.value)};
+            mobius.c = {re: parseFloat(c_re_slider.value), im: parseFloat(c_im_slider.value)};
+            mobius.d = {re: parseFloat(d_re_slider.value), im: parseFloat(d_im_slider.value)};
+            document.getElementById('a_re_val').innerText = mobius.a.re.toFixed(2);
+            document.getElementById('a_im_val').innerText = mobius.a.im.toFixed(2);
+            document.getElementById('b_re_val').innerText = mobius.b.re.toFixed(2);
+            document.getElementById('b_im_val').innerText = mobius.b.im.toFixed(2);
+            document.getElementById('c_re_val').innerText = mobius.c.re.toFixed(2);
+            document.getElementById('c_im_val').innerText = mobius.c.im.toFixed(2);
+            document.getElementById('d_re_val').innerText = mobius.d.re.toFixed(2);
+            document.getElementById('d_im_val').innerText = mobius.d.im.toFixed(2);
+        }
+        function syncSlidersFromMatrix() {
+            a_re_slider.value = mobius.a.re; a_im_slider.value = mobius.a.im;
+            b_re_slider.value = mobius.b.re; b_im_slider.value = mobius.b.im;
+            c_re_slider.value = mobius.c.re; c_im_slider.value = mobius.c.im;
+            d_re_slider.value = mobius.d.re; d_im_slider.value = mobius.d.im;
+            updateMatrixFromSliders();
+        }
+        
+        function applyPreset(type) {
+            if(type === 'hyperbolic') mobius = getHyperbolicPreset();
+            else if(type === 'elliptic') mobius = getEllipticPreset();
+            else if(type === 'loxodromic') mobius = getLoxodromicPreset();
+            else return;
+            syncSlidersFromMatrix();
+            redrawFull();
+        }
+        
+        function worldToCanvas(p) {
+            let x = (p.re - xlim[0]) / (xlim[1] - xlim[0]) * width;
+            let y = height - (p.im - ylim[0]) / (ylim[1] - ylim[0]) * height;
+            return {x, y};
+        }
+        function canvasToWorld(px, py) {
+            let x = xlim[0] + (px / width) * (xlim[1] - xlim[0]);
+            let y = ylim[1] - (py / height) * (ylim[1] - ylim[0]);
+            return {re: x, im: y};
+        }
+        
+        function drawCircleWithTick(circle, color, alpha, lw=1.0) {
+            let {center, radius, refPoint} = circle;
+            if(!isFinite(center.re) || !isFinite(center.im) || !isFinite(radius) || radius < 1e-8) return;
+            let c = worldToCanvas(center);
+            let radX = radius / (xlim[1]-xlim[0]) * width;
+            if(radX > 8000 || radX < 0.2) return;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, Math.max(0.04, alpha));
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, radX, 0, 2*Math.PI);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lw;
+            ctx.stroke();
+            if(refPoint && isFinite(refPoint.re) && isFinite(refPoint.im)) {
+                let pRef = worldToCanvas(refPoint);
+                ctx.beginPath();
+                ctx.moveTo(c.x, c.y);
+                ctx.lineTo(pRef.x, pRef.y);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lw * 1.2;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        
+        function drawAll() {
+            ctx.clearRect(0,0,width,height);
+            ctx.fillStyle = "#03050a";
+            ctx.fillRect(0,0,width,height);
+            for(let s of seeds) {
+                drawCircleWithTick(s, seedColor, 1.0, 1.3);
+            }
+            if(seeds.length === 0) return;
+            const inv = mobiusInverse(mobius.a, mobius.b, mobius.c, mobius.d);
+            for(let s of seeds) {
+                if(direction === 'forward' || direction === 'both') {
+                    let cur = s;
+                    for(let i=0; i<currentIter; i++) {
+                        let next = transformCircleWithRef(cur, mobius.a, mobius.b, mobius.c, mobius.d);
+                        if(!next) break;
+                        let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
+                        drawCircleWithTick(next, fwdColor, alpha, 1.0);
+                        cur = next;
+                    }
+                }
+                if(direction === 'backward' || direction === 'both') {
+                    let cur = s;
+                    for(let i=0; i<currentIter; i++) {
+                        let next = transformCircleWithRef(cur, inv.a, inv.b, inv.c, inv.d);
+                        if(!next) break;
+                        let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
+                        drawCircleWithTick(next, bwdColor, alpha, 1.0);
+                        cur = next;
+                    }
+                }
+            }
+            currentIterSpan.innerText = `Iter: ${currentIter} / ${maxIter}`;
+        }
+        
+        function redrawFull() {
+            drawAll();
+            renderSeedList();
+        }
+        
+        function renderSeedList() {
+            const container = document.getElementById('seedList');
+            container.innerHTML = '';
+            seeds.forEach((seed, idx) => {
+                const div = document.createElement('div');
+                div.className = 'seed-item';
+                div.innerHTML = `
+                    <div class="seed-row">
+                        <div class="seed-coord-input">
+                            <span style="color:#8aa2ff;">x:</span>
+                            <input type="number" step="0.05" class="seed-x" data-idx="${idx}" value="${seed.center.re.toFixed(3)}" style="width:60px">
+                            <span style="color:#8aa2ff;">y:</span>
+                            <input type="number" step="0.05" class="seed-y" data-idx="${idx}" value="${seed.center.im.toFixed(3)}" style="width:60px">
+                        </div>
+                        <div class="radius-control">
+                            <span>r:</span>
+                            <input type="range" class="radius-slider" data-idx="${idx}" min="0.05" max="1.2" step="0.01" value="${seed.radius.toFixed(2)}" style="width:80px">
+                            <input type="number" step="0.01" class="radius-num" data-idx="${idx}" value="${seed.radius.toFixed(2)}" style="width:50px">
+                        </div>
+                        <button class="del-seed" data-idx="${idx}">✖</button>
+                    </div>
+                `;
+                container.appendChild(div);
+                
+                const xInput = div.querySelector('.seed-x');
+                const yInput = div.querySelector('.seed-y');
+                const radiusSlider = div.querySelector('.radius-slider');
+                const radiusNum = div.querySelector('.radius-num');
+                
+                const updateSeed = () => {
+                    seeds[idx].center.re = parseFloat(xInput.value);
+                    seeds[idx].center.im = parseFloat(yInput.value);
+                    seeds[idx].radius = parseFloat(radiusSlider.value);
+                    seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
+                    radiusNum.value = seeds[idx].radius.toFixed(2);
+                    redrawFull();
+                };
+                xInput.addEventListener('change', updateSeed);
+                yInput.addEventListener('change', updateSeed);
+                radiusSlider.addEventListener('input', () => {
+                    let newRad = parseFloat(radiusSlider.value);
+                    seeds[idx].radius = newRad;
+                    seeds[idx].refPoint = {re: seeds[idx].center.re + newRad, im: seeds[idx].center.im};
+                    radiusNum.value = newRad.toFixed(2);
+                    redrawFull();
+                });
+                radiusNum.addEventListener('change', () => {
+                    let newRad = parseFloat(radiusNum.value);
+                    if(!isNaN(newRad)) {
+                        seeds[idx].radius = Math.min(1.2, Math.max(0.05, newRad));
+                        radiusSlider.value = seeds[idx].radius;
+                        radiusNum.value = seeds[idx].radius.toFixed(2);
+                        seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
+                        redrawFull();
+                    }
+                });
+                div.querySelector('.del-seed').addEventListener('click', () => {
+                    seeds.splice(idx,1);
+                    redrawFull();
+                });
+            });
+        }
+        
+        function getSeedIndexUnderCursor(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (clientX - rect.left) * scaleX;
+            const canvasY = (clientY - rect.top) * scaleY;
+            const world = canvasToWorld(canvasX, canvasY);
+            for (let i = 0; i < seeds.length; i++) {
+                const s = seeds[i];
+                const dx = world.re - s.center.re;
+                const dy = world.im - s.center.im;
+                const dist = Math.hypot(dx, dy);
+                if (dist <= s.radius) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        
+        function onMouseDown(e) {
+            e.preventDefault();
+            const idx = getSeedIndexUnderCursor(e.clientX, e.clientY);
+            if (idx !== -1) {
+                dragIndex = idx;
+                dragActive = true;
+                dragPerformed = false;
+                canvas.style.cursor = 'grabbing';
+                e.stopPropagation();
+            } else {
+                dragActive = false;
+                dragPerformed = false;
+            }
+        }
+        
+        function onMouseMove(e) {
+            if (!dragActive || dragIndex === -1) return;
+            e.preventDefault();
+            dragPerformed = true;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            const canvasY = (e.clientY - rect.top) * scaleY;
+            const world = canvasToWorld(canvasX, canvasY);
+            seeds[dragIndex].center = {re: world.re, im: world.im};
+            seeds[dragIndex].refPoint = {re: seeds[dragIndex].center.re + seeds[dragIndex].radius, im: seeds[dragIndex].center.im};
+            redrawFull();
+        }
+        
+        function onMouseUp(e) {
+            if (dragActive) {
+                dragActive = false;
+                dragIndex = -1;
+                canvas.style.cursor = 'crosshair';
+                e.preventDefault();
+                setTimeout(() => { dragPerformed = false; }, 10);
+            }
+        }
+        
+        function addSeedFromClick(e) {
+            if (dragPerformed) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            const canvasY = (e.clientY - rect.top) * scaleY;
+            let world = canvasToWorld(canvasX, canvasY);
+            let radius = 0.25;
+            let refPoint = {re: world.re + radius, im: world.im};
+            seeds.push({center: {re: world.re, im: world.im}, radius: radius, refPoint: refPoint});
+            redrawFull();
+        }
+        
+        function stopAnimation() {
+            if(animationInterval) { clearInterval(animationInterval); animationInterval = null; }
+            playing = false;
+            playBtn.innerText = '▶ PLAY';
+        }
+        function startAnimation() {
+            if(animationInterval) stopAnimation();
+            playing = true;
+            playBtn.innerText = '⏸ PAUSE';
+            let delay = parseInt(deltaSlider.value);
+            animationInterval = setInterval(() => {
+                if(currentIter < maxIter) {
+                    currentIter = Math.min(maxIter, currentIter+1);
+                    redrawFull();
+                } else {
+                    stopAnimation();
+                }
+            }, delay);
+        }
+        function togglePlay() {
+            if(playing) stopAnimation();
+            else startAnimation();
+        }
+        function stepOnce() {
+            if(playing) stopAnimation();
+            if(currentIter < maxIter) {
+                currentIter = Math.min(maxIter, currentIter+1);
+                redrawFull();
+            }
+        }
+        function resetIterations() {
+            if(playing) stopAnimation();
+            currentIter = 0;
+            redrawFull();
+        }
+        function resetSeeds() {
+            seeds = [];
+            redrawFull();
+        }
+        function defaultSeeds() {
+            let radius = 0.5;
+            let center = {re: 0, im: 0};
+            let refPoint = {re: center.re + radius, im: center.im};
+            seeds = [{center: center, radius: radius, refPoint: refPoint}];
+            redrawFull();
+        }
+        
+        function updateMaxIter() {
+            let newMax = parseInt(maxIterInput.value);
+            if(isNaN(newMax)) newMax = 5;
+            newMax = Math.min(50, Math.max(1, newMax));
+            maxIter = newMax;
+            maxIterInput.value = maxIter;
+            if(currentIter > maxIter) currentIter = maxIter;
+            redrawFull();
+            if(playing && currentIter >= maxIter) stopAnimation();
+        }
+        
+        function bindEvents() {
+            a_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            a_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            b_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            b_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            c_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            c_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            d_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            d_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
+            
+            maxIterInput.addEventListener('change', updateMaxIter);
+            alphaSlider.addEventListener('input', (e) => { alphaMin = parseFloat(e.target.value); alphaMinVal.innerText = alphaMin.toFixed(2); redrawFull(); });
+            deltaSlider.addEventListener('input', (e) => { deltaVal.innerText = e.target.value+'ms'; if(playing) { stopAnimation(); startAnimation(); } });
+            playBtn.addEventListener('click', togglePlay);
+            stepBtn.addEventListener('click', stepOnce);
+            resetIterBtn.addEventListener('click', resetIterations);
+            resetCanvasBtn.addEventListener('click', resetSeeds);
+            defaultSeedsBtn.addEventListener('click', defaultSeeds);
+            applyTypeBtn.addEventListener('click', () => { let t = typeSelect.value; if(t !== 'custom') applyPreset(t); });
+            canvas.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('click', addSeedFromClick);
+            radioBoth.addEventListener('change', () => { if(radioBoth.checked) direction = "both"; redrawFull(); });
+            radioForward.addEventListener('change', () => { if(radioForward.checked) direction = "forward"; redrawFull(); });
+            radioBackward.addEventListener('change', () => { if(radioBackward.checked) direction = "backward"; redrawFull(); });
+        }
+        
+        function init() {
+            defaultSeeds();
+            updateMatrixFromSliders();
+            maxIter = 5; currentIter = 0;
+            maxIterInput.value = 5;
+            bindEvents();
+            redrawFull();
+            canvas.style.cursor = 'crosshair';
+        }
+        init();
+    })();
+</script>
+</body>
+</html>
