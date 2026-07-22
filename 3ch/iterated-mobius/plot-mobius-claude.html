@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Möbius Transform Visualizer</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+        #controls {
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            background: #111;
+            width: 100%;
+            justify-content: center;
+            border-bottom: 1px solid #333;
+        }
+        select, button {
+            background: #222;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        select:hover, button:hover {
+            background: #333;
+        }
+        canvas {
+            margin-top: 20px;
+            background-color: #000;
+            border: 1px solid #222;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <select id="preset-select">
+            <option value="hyperbolic">Hyperbolic (k=2.8)</option>
+            <option value="elliptic">Elliptic (θ=π/7)</option>
+            <option value="loxodromic">Loxodromic (k=1.35, θ=π/7)</option>
+        </select>
+        <button id="reset-btn">Reset</button>
+    </div>
+
+    <canvas id="plot" width="800" height="800"></canvas>
+
+<script>
+// --- Complex Math Engine ---
+class C {
+    constructor(r, i = 0) {
+        this.r = r;
+        this.i = i;
+    }
+    add(c) { return new C(this.r + c.r, this.i + c.i); }
+    sub(c) { return new C(this.r - c.r, this.i - c.i); }
+    mul(c) { return new C(this.r * c.r - this.i * c.i, this.r * c.i + this.i * c.r); }
+    div(c) {
+        let den = c.r * c.r + c.i * c.i;
+        return new C((this.r * c.r + this.i * c.i) / den, (this.i * c.r - this.r * c.i) / den);
+    }
+    abs() { return Math.sqrt(this.r * this.r + this.i * this.i); }
+    scale(s) { return new C(this.r * s, this.i * s); }
+}
+
+const I = new C(0, 1);
+const ONE = new C(1, 0);
+const ZERO = new C(0, 0);
+
+function expC(theta) {
+    return new C(Math.cos(theta), Math.sin(theta));
+}
+
+// 2x2 Matrix Operations [ [a, b], [c, d] ]
+function matMul(M1, M2) {
+    return [
+        [M1[0][0].mul(M2[0][0]).add(M1[0][1].mul(M2[1][0])), M1[0][0].mul(M2[0][1]).add(M1[0][1].mul(M2[1][1]))],
+        [M1[1][0].mul(M2[0][0]).add(M1[1][1].mul(M2[1][0])), M1[1][0].mul(M2[0][1]).add(M1[1][1].mul(M2[1][1]))]
+    ];
+}
+
+function mobiusInv(M) {
+    let a = M[0][0], b = M[0][1], c = M[1][0], d = M[1][1];
+    let det = a.mul(d).sub(b.mul(c));
+    return [
+        [d.div(det), b.scale(-1).div(det)],
+        [c.scale(-1).div(det), a.div(det)]
+    ];
+}
+
+// --- Geometry & Transforms ---
+function circleFromThree(z1, z2, z3) {
+    let x1 = z1.r, y1 = z1.i;
+    let x2 = z2.r, y2 = z2.i;
+    let x3 = z3.r, y3 = z3.i;
+
+    let D = 2.0 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (Math.abs(D) < 1e-14) return null;
+
+    let r1sq = x1 * x1 + y1 * y1;
+    let r2sq = x2 * x2 + y2 * y2;
+    let r3sq = x3 * x3 + y3 * y3;
+
+    let ux = (r1sq * (y2 - y3) + r2sq * (y3 - y1) + r3sq * (y1 - y2)) / D;
+    let uy = (r1sq * (x3 - x2) + r2sq * (x1 - x3) + r3sq * (x2 - x1)) / D;
+    
+    let center = new C(ux, uy);
+    let radius = z1.sub(center).abs();
+    return { center, radius };
+}
+
+function transformCircle(center, radius, M) {
+    let a = M[0][0], b = M[0][1], c = M[1][0], d = M[1][1];
+
+    let base = Math.PI / 12;
+    let angles = [base, base + 2 * Math.PI / 3, base + 4 * Math.PI / 3];
+    let pts = angles.map(ang => center.add(expC(ang).scale(radius)));
+
+    let pole = c.abs() > 1e-15 ? d.scale(-1).div(c) : null;
+    if (pole) {
+        for (let i = 0; i < 3; i++) {
+            if (pts[i].sub(pole).abs() < radius * 0.05) {
+                angles[i] += Math.PI / 7;
+                pts[i] = center.add(expC(angles[i]).scale(radius));
+            }
+        }
+    }
+
+    let mapped = pts.map(p => {
+        let num = a.mul(p).add(b);
+        let den = c.mul(p).add(d);
+        return num.div(den);
+    });
+
+    for (let p of mapped) {
+        if (!isFinite(p.r) || !isFinite(p.i)) return null;
+    }
+
+    return circleFromThree(mapped[0], mapped[1], mapped[2]);
+}
+
+function conjugate(M_0inf, p, q) {
+    let S = [[q, p], [ONE, ONE]];
+    let S_inv = mobiusInv(S);
+    return matMul(matMul(S, M_0inf), S_inv);
+}
+
+function getHyperbolic() {
+    let k = new C(2.8, 0);
+    let M0 = [[k, ZERO], [ZERO, ONE]];
+    let p = new C(-1, 0), q = new C(1, 0);
+    return { M: conjugate(M0, p, q), iters: 3, view: 2.8 };
+}
+
+function getElliptic() {
+    let M0 = [[expC(Math.PI / 7), ZERO], [ZERO, ONE]];
+    let p = new C(0, -0.8), q = new C(0, 0.8);
+    return { M: conjugate(M0, p, q), iters: 20, view: 2.8 };
+}
+
+function getLoxodromic() {
+    let k_exp = expC(Math.PI / 7).scale(1.35);
+    let M0 = [[k_exp, ZERO], [ZERO, ONE]];
+    let p = new C(-0.5, -0.5), q = new C(0.8, 0.6);
+    return { M: conjugate(M0, p, q), iters: 12, view: 3.2 };
+}
+
+// --- Rendering ---
+const canvas = document.getElementById('plot');
+const ctx = canvas.getContext('2d');
+let width = canvas.width;
+let height = canvas.height;
+
+function toScreen(c, viewLimit) {
+    let scale = (width / 2) / viewLimit;
+    return {
+        x: width / 2 + c.r * scale,
+        y: height / 2 - c.i * scale,
+        r: c.radius * scale
+    };
+}
+
+function drawCircle(cen, rad, color, alpha, viewLimit) {
+    let s = toScreen({ r: cen.r, i: cen.i, radius: rad }, viewLimit);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, 2 * Math.PI);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
+}
+
+function plotIteratedMobius(M, seeds, nIter, viewLimit) {
+    ctx.clearRect(0, 0, width, height);
+    let Minv = mobiusInv(M);
+    
+    let alphaStart = 1.0;
+    let alphaMin = 0.12;
+    let getAlpha = (i) => Math.max(alphaMin, alphaStart - i * ((alphaStart - alphaMin) / nIter));
+
+    seeds.forEach(seed => {
+        let fwd = [];
+        let curr = { center: seed.center, radius: seed.radius };
+        for (let i = 0; i < nIter; i++) {
+            curr = transformCircle(curr.center, curr.radius, M);
+            if (!curr || curr.radius > 1e5 || curr.radius < 1e-9) break;
+            fwd.push(curr);
+        }
+
+        let bwd = [];
+        curr = { center: seed.center, radius: seed.radius };
+        for (let i = 0; i < nIter; i++) {
+            curr = transformCircle(curr.center, curr.radius, Minv);
+            if (!curr || curr.radius > 1e5 || curr.radius < 1e-9) break;
+            bwd.push(curr);
+        }
+
+        drawCircle(seed.center, seed.radius, "white", 1.0, viewLimit);
+        fwd.forEach((c, i) => drawCircle(c.center, c.radius, "royalblue", getAlpha(i), viewLimit));
+        bwd.forEach((c, i) => drawCircle(c.center, c.radius, "gold", getAlpha(i), viewLimit));
+    });
+}
+
+function renderScene() {
+    let type = document.getElementById('preset-select').value;
+    let config, seeds;
+
+    if (type === 'hyperbolic') {
+        config = getHyperbolic();
+        config.iters = 30; // Boosted for visual depth matching python output
+        seeds = [
+            { center: new C(0, 0.3), radius: 0.25 },
+            { center: new C(0, -0.3), radius: 0.25 },
+            { center: new C(0, 0), radius: 0.7 },
+            { center: new C(0.6, 0), radius: 0.15 },
+            { center: new C(-0.6, 0), radius: 0.15 }
+        ];
+    } else if (type === 'elliptic') {
+        config = getElliptic();
+        config.iters = 20;
+        seeds = [
+            { center: new C(0.9, 0), radius: 0.35 },
+            { center: new C(1.6, 0), radius: 0.3 },
+            { center: new C(0.3, 0.3), radius: 0.18 },
+            { center: new C(-1.0, 0), radius: 0.2 }
+        ];
+    } else {
+        config = getLoxodromic();
+        config.iters = 18;
+        seeds = [
+            { center: new C(0.2, 0.2), radius: 0.25 },
+            { center: new C(-0.5, 0.8), radius: 0.2 },
+            { center: new C(1.0, -0.3), radius: 0.3 }
+        ];
+    }
+
+    plotIteratedMobius(config.M, seeds, config.iters, config.view);
+}
+
+document.getElementById('preset-select').addEventListener('change', renderScene);
+document.getElementById('reset-btn').addEventListener('click', renderScene);
+
+// Initial render
+renderScene();
+</script>
+</body>
+</html>

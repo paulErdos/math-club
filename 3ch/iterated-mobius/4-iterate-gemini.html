@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Möbius Transform Visualizer</title>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 320px; background: #111; padding: 20px; border-right: 1px solid #333; overflow-y: auto; }
+        #canvas-container { flex: 1; position: relative; }
+        canvas { width: 100%; height: 100%; display: block; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        input[type="range"] { width: 100%; }
+        button, select { width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: #222; border: 1px solid #444; color: #fff; }
+        button:hover, select:hover { background: #333; border-color: #666; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="row">
+        <button id="play-pause">Play</button>
+        <button id="step">Step</button>
+    </div>
+    <button id="reset">Reset Visualization</button>
+    
+    <div class="control-group">
+        <label>Speed (ms)</label>
+        <input type="range" id="speed" min="50" max="1000" value="200">
+    </div>
+
+    <label>Presets</label>
+    <select id="preset">
+        <option value="custom">Custom</option>
+        <option value="hyperbolic">Hyperbolic</option>
+        <option value="elliptic">Elliptic</option>
+        <option value="loxodromic">Loxodromic</option>
+    </select>
+
+    <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+
+    <div class="row">
+        <div class="control-group"><label>Re(a)</label><input type="range" class="m-param" id="a_r" min="-3" max="3" step="0.1" value="1.1"></div>
+        <div class="control-group"><label>Im(a)</label><input type="range" class="m-param" id="a_i" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Re(b)</label><input type="range" class="m-param" id="b_r" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Im(b)</label><input type="range" class="m-param" id="b_i" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Re(c)</label><input type="range" class="m-param" id="c_r" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Im(c)</label><input type="range" class="m-param" id="c_i" min="-3" max="3" step="0.1" value="0.1"></div>
+        <div class="control-group"><label>Re(d)</label><input type="range" class="m-param" id="d_r" min="-3" max="3" step="0.1" value="0.9"></div>
+        <div class="control-group"><label>Im(d)</label><input type="range" class="m-param" id="d_i" min="-3" max="3" step="0.1" value="0"></div>
+    </div>
+</div>
+
+<div id="canvas-container"><canvas id="c"></canvas></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let width, height;
+let fwd = [], bwd = [];
+let playing = false, lastTime = 0;
+
+// Möbius Matrix Class
+class M {
+    constructor(a, b, c, d) { this.a = a; this.b = b; this.c = c; this.d = d; }
+}
+
+class Complex {
+    constructor(r, i = 0) { this.r = r; this.i = i; }
+    add(o) { return new Complex(this.r + o.r, this.i + o.i); }
+    sub(o) { return new Complex(this.r - o.r, this.i - o.i); }
+    mul(o) { return new Complex(this.r * o.r - this.i * o.i, this.r * o.i + this.i * o.r); }
+    div(o) { let d = o.r * o.r + o.i * o.i; return new Complex((this.r * o.r + this.i * o.i) / d, (this.i * o.r - this.r * o.i) / d); }
+    abs() { return Math.sqrt(this.r * this.r + this.i * this.i); }
+}
+
+function getM() {
+    return new M(
+        new Complex(+document.getElementById('a_r').value, +document.getElementById('a_i').value),
+        new Complex(+document.getElementById('b_r').value, +document.getElementById('b_i').value),
+        new Complex(+document.getElementById('c_r').value, +document.getElementById('c_i').value),
+        new Complex(+document.getElementById('d_r').value, +document.getElementById('d_i').value)
+    );
+}
+
+function getInv(M) {
+    // [[d, -b], [-c, a]] / det. Simplifying: det = ad - bc. 
+    let det = M.a.mul(M.d).sub(M.b.mul(M.c));
+    return new M(
+        M.d.div(det), M.b.mul(new Complex(-1, 0)).div(det),
+        M.c.mul(new Complex(-1, 0)).div(det), M.a.div(det)
+    );
+}
+
+function circleFromThree(z1, z2, z3) {
+    let x1=z1.r, y1=z1.i, x2=z2.r, y2=z2.i, x3=z3.r, y3=z3.i;
+    let D = 2.0 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (Math.abs(D) < 1e-14) return null;
+    let r1 = x1*x1 + y1*y1, r2 = x2*x2 + y2*y2, r3 = x3*x3 + y3*y3;
+    let ux = (r1 * (y2 - y3) + r2 * (y3 - y1) + r3 * (y1 - y2)) / D;
+    let uy = (r1 * (x3 - x2) + r2 * (x1 - x3) + r3 * (x2 - x1)) / D;
+    let center = new Complex(ux, uy);
+    return { center, radius: z1.sub(center).abs() };
+}
+
+function transformCircle(c, r, M) {
+    let pts = [Math.PI/12, Math.PI/12 + 2*Math.PI/3, Math.PI/12 + 4*Math.PI/3].map(ang => 
+        new Complex(c.r + r * Math.cos(ang), c.i + r * Math.sin(ang))
+    );
+    let mapped = pts.map(p => M.a.mul(p).add(M.b).div(M.c.mul(p).add(M.d)));
+    return circleFromThree(mapped[0], mapped[1], mapped[2]);
+}
+
+function draw() {
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,width,height);
+    const scale = 100;
+    ctx.lineWidth = 1;
+    
+    ctx.strokeStyle = 'royalblue';
+    fwd.forEach(o => { ctx.beginPath(); ctx.arc(width/2 + o.center.r*scale, height/2 - o.center.i*scale, o.radius*scale, 0, 7); ctx.stroke(); });
+    ctx.strokeStyle = 'gold';
+    bwd.forEach(o => { ctx.beginPath(); ctx.arc(width/2 + o.center.r*scale, height/2 - o.center.i*scale, o.radius*scale, 0, 7); ctx.stroke(); });
+}
+
+function step() {
+    let M = getM();
+    let Inv = getInv(M);
+    let f = fwd.length ? fwd[fwd.length-1] : {center: new Complex(0,0.5), radius: 0.2};
+    let b = bwd.length ? bwd[bwd.length-1] : {center: new Complex(0,0.5), radius: 0.2};
+    
+    let nextF = transformCircle(f.center, f.radius, M);
+    let nextB = transformCircle(b.center, b.radius, Inv);
+    
+    if(nextF && nextF.radius < 50) fwd.push(nextF);
+    if(nextB && nextB.radius < 50) bwd.push(nextB);
+    draw();
+}
+
+document.getElementById('play-pause').onclick = (e) => { 
+    playing = !playing; e.target.innerText = playing ? 'Pause' : 'Play'; 
+};
+document.getElementById('step').onclick = step;
+document.getElementById('reset').onclick = () => { fwd=[]; bwd=[]; draw(); };
+document.querySelectorAll('.m-param').forEach(el => el.oninput = () => { fwd=[]; bwd=[]; draw(); });
+
+document.getElementById('preset').onchange = (e) => {
+    const val = e.target.value;
+    const presets = {
+        hyperbolic: {a_r: 1.5, a_i: 0, b_r: 0, b_i: 0, c_r: 0, c_i: 0, d_r: 1, d_i: 0},
+        elliptic: {a_r: 0.96, a_i: 0.25, b_r: 0, b_i: 0, c_r: 0, c_i: 0, d_r: 1, d_i: 0},
+        loxodromic: {a_r: 1.1, a_i: 0.2, b_r: -0.1, b_i: 0, c_r: 0, c_i: 0.1, d_r: 0.9, d_i: -0.1}
+    };
+    if(presets[val]) {
+        Object.entries(presets[val]).forEach(([id, v]) => document.getElementById(id).value = v);
+        fwd=[]; bwd=[]; draw();
+    }
+};
+
+function loop(t) {
+    if(playing && t - lastTime > document.getElementById('speed').value) { step(); lastTime = t; }
+    requestAnimationFrame(loop);
+}
+
+function resize() { width = canvas.width = canvas.clientWidth; height = canvas.height = canvas.clientHeight; draw(); }
+window.onresize = resize;
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

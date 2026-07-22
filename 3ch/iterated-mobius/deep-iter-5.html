@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Möbius Transform - 1200px Canvas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Iterated Möbius Transform - Drag Circles</title>
     <style>
         * {
             user-select: none;
@@ -25,8 +25,6 @@
             padding: 20px;
             box-shadow: 0 20px 35px rgba(0,0,0,0.6);
             border: 1px solid #2a2e44;
-            max-width: 98vw;
-            overflow-x: auto;
         }
         .canvas-panel {
             display: flex;
@@ -39,8 +37,6 @@
             display: block;
             border: 1px solid #2f354c;
             cursor: crosshair;
-            width: 100%;
-            height: auto;
         }
         .controls {
             margin-top: 20px;
@@ -73,19 +69,18 @@
             flex: 1;
             min-width: 100px;
             background: #1e2237;
-            height: 4px;
+            height: 3px;
             border-radius: 4px;
             -webkit-appearance: none;
             cursor: pointer;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: #7c93ff;
             cursor: grab;
-            border: none;
         }
         input[type="range"]:active::-webkit-slider-thumb {
             cursor: grabbing;
@@ -192,10 +187,6 @@
             align-items: center;
             gap: 5px;
         }
-        .radius-control input[type="range"] {
-            width: 80px;
-            cursor: grab;
-        }
         .del-seed {
             background: #481e2c;
             padding: 2px 10px;
@@ -206,6 +197,10 @@
             font-size: 0.7rem;
             margin-top: 8px;
             text-align: center;
+        }
+        hr {
+            border-color: #262e4a;
+            margin: 12px 0;
         }
         h3 {
             margin: 0 0 8px 0;
@@ -235,23 +230,12 @@
             font-family: monospace;
             text-align: center;
         }
-        .iter-badge {
-            background: #1e2a3a;
-            border-radius: 20px;
-            padding: 2px 12px;
-            font-size: 0.75rem;
-            color: #ffd966;
-        }
-        @media (max-width: 1400px) {
-            .container { padding: 10px; }
-            canvas { max-width: 100%; height: auto; }
-        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="canvas-panel">
-        <canvas id="mobiusCanvas" width="1200" height="1200" style="width:1200px;height:1200px; max-width:100%; height:auto;"></canvas>
+        <canvas id="mobiusCanvas" width="700" height="700" style="width:700px;height:700px"></canvas>
     </div>
 
     <div class="controls">
@@ -274,10 +258,9 @@
             </div>
             
             <div class="param-row">
-                <label>MAX ITER</label>
-                <input type="number" id="maxIterInput" class="number-input" min="1" max="50" value="5" step="1" style="width:80px">
+                <label>ITERS</label>
+                <input type="number" id="iterCount" class="number-input" min="1" max="100" value="3" step="1" style="width:80px">
                 <span style="color:#7c93ff;">max iterations</span>
-                <button id="resetIterBtn" style="background:#2a3a50;">↺ Reset Iter</button>
             </div>
             <div class="param-row">
                 <label>DIRECTION</label>
@@ -294,7 +277,6 @@
                 <label>▶ SPEED</label><input type="range" id="deltaMs" min="40" max="700" step="10" value="200"><span id="deltaVal" class="param-value">200ms</span>
                 <button id="playBtn" class="primary-btn">▶ PLAY</button>
                 <button id="stepBtn">⏯ STEP</button>
-                <span class="iter-badge" id="currentIterDisplay">Iter: 0 / 5</span>
             </div>
         </div>
 
@@ -306,7 +288,7 @@
                 <button id="defaultSeedsBtn">✨ DEFAULT SEEDS</button>
             </div>
             <div class="seed-list" id="seedList"></div>
-            <div class="status">● Ticks rotate with transform (backward rotates opposite direction)</div>
+            <div class="status">● Drag any white circle to reposition it</div>
         </div>
     </div>
 </div>
@@ -316,7 +298,7 @@
         // ---------- utilities ----------
         const canvas = document.getElementById('mobiusCanvas');
         const ctx = canvas.getContext('2d');
-        const width = 1200, height = 1200;
+        const width = 700, height = 700;
         let xlim = [-3.2, 3.2];
         let ylim = [-3.2, 3.2];
 
@@ -338,9 +320,22 @@
             return complexDiv(num, den);
         }
 
-        // Circle with reference point
-        function transformCircleWithRef(circle, a,b,c,d) {
-            let {center, radius, refPoint} = circle;
+        function circleFromThree(p1,p2,p3) {
+            const x1=p1.re, y1=p1.im, x2=p2.re, y2=p2.im, x3=p3.re, y3=p3.im;
+            const D = 2.0 * (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2));
+            if(Math.abs(D) < 1e-12) return null;
+            const r1sq = x1*x1 + y1*y1;
+            const r2sq = x2*x2 + y2*y2;
+            const r3sq = x3*x3 + y3*y3;
+            const ux = (r1sq*(y2 - y3) + r2sq*(y3 - y1) + r3sq*(y1 - y2)) / D;
+            const uy = (r1sq*(x3 - x2) + r2sq*(x1 - x3) + r3sq*(x2 - x1)) / D;
+            const center = {re: ux, im: uy};
+            const radius = Math.hypot(center.re - x1, center.im - y1);
+            return {center, radius};
+        }
+
+        function transformCircle(circle, a,b,c,d) {
+            let {center, radius} = circle;
             const baseAngle = Math.PI/12;
             let angles = [baseAngle, baseAngle + 2*Math.PI/3, baseAngle + 4*Math.PI/3];
             let pts = angles.map(ang => ({re: center.re + radius*Math.cos(ang), im: center.im + radius*Math.sin(ang)}));
@@ -359,34 +354,12 @@
                     }
                 }
             }
-            let mappedPts = pts.map(p => mobiusMap(p, a,b,c,d));
-            if(!mappedPts.every(p => isFinite(p.re) && isFinite(p.im))) return null;
-            const newCirc = circleFromThree(mappedPts[0], mappedPts[1], mappedPts[2]);
+            let mapped = pts.map(p => mobiusMap(p, a,b,c,d));
+            if(!mapped.every(p => isFinite(p.re) && isFinite(p.im))) return null;
+            const newCirc = circleFromThree(mapped[0], mapped[1], mapped[2]);
             if(!newCirc) return null;
             if(!isFinite(newCirc.radius) || newCirc.radius > 1e5 || newCirc.radius < 1e-12) return null;
-            
-            let newRef = mobiusMap(refPoint, a,b,c,d);
-            if(!isFinite(newRef.re) || !isFinite(newRef.im)) return null;
-            
-            return {
-                center: newCirc.center,
-                radius: newCirc.radius,
-                refPoint: newRef
-            };
-        }
-        
-        function circleFromThree(p1,p2,p3) {
-            const x1=p1.re, y1=p1.im, x2=p2.re, y2=p2.im, x3=p3.re, y3=p3.im;
-            const D = 2.0 * (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2));
-            if(Math.abs(D) < 1e-12) return null;
-            const r1sq = x1*x1 + y1*y1;
-            const r2sq = x2*x2 + y2*y2;
-            const r3sq = x3*x3 + y3*y3;
-            const ux = (r1sq*(y2 - y3) + r2sq*(y3 - y1) + r3sq*(y1 - y2)) / D;
-            const uy = (r1sq*(x3 - x2) + r2sq*(x1 - x3) + r3sq*(x2 - x1)) / D;
-            const center = {re: ux, im: uy};
-            const radius = Math.hypot(center.re - x1, center.im - y1);
-            return {center, radius};
+            return newCirc;
         }
 
         function mobiusInverse(a,b,c,d) {
@@ -443,8 +416,7 @@
             d: {re: 0.8, im: 0}
         };
         let seeds = [];
-        let maxIter = 5;
-        let currentIter = 0;
+        let n_iter = 3;
         let alphaMin = 0.18;
         let direction = "both";
         const fwdColor = "#4d7eff";
@@ -454,9 +426,9 @@
         let animationInterval = null;
         let playing = false;
         
+        // Drag state
         let dragIndex = -1;
         let dragActive = false;
-        let dragPerformed = false;
         
         // UI elements
         const a_re_slider = document.getElementById('a_re');
@@ -467,7 +439,7 @@
         const c_im_slider = document.getElementById('c_im');
         const d_re_slider = document.getElementById('d_re');
         const d_im_slider = document.getElementById('d_im');
-        const maxIterInput = document.getElementById('maxIterInput');
+        const iterNumber = document.getElementById('iterCount');
         const alphaSlider = document.getElementById('alphaMin');
         const alphaMinVal = document.getElementById('alphaMinVal');
         const deltaSlider = document.getElementById('deltaMs');
@@ -478,8 +450,6 @@
         const defaultSeedsBtn = document.getElementById('defaultSeedsBtn');
         const applyTypeBtn = document.getElementById('applyTypeBtn');
         const typeSelect = document.getElementById('transformType');
-        const resetIterBtn = document.getElementById('resetIterBtn');
-        const currentIterSpan = document.getElementById('currentIterDisplay');
         const radioBoth = document.querySelector('input[value="both"]');
         const radioForward = document.querySelector('input[value="forward"]');
         const radioBackward = document.querySelector('input[value="backward"]');
@@ -515,6 +485,7 @@
             redrawFull();
         }
         
+        // drawing & coordinate conversion
         function worldToCanvas(p) {
             let x = (p.re - xlim[0]) / (xlim[1] - xlim[0]) * width;
             let y = height - (p.im - ylim[0]) / (ylim[1] - ylim[0]) * height;
@@ -525,13 +496,11 @@
             let y = ylim[1] - (py / height) * (ylim[1] - ylim[0]);
             return {re: x, im: y};
         }
-        
-        function drawCircleWithTick(circle, color, alpha, lw=1.0) {
-            let {center, radius, refPoint} = circle;
+        function drawCircle(center, radius, color, alpha, lw=1.0) {
             if(!isFinite(center.re) || !isFinite(center.im) || !isFinite(radius) || radius < 1e-8) return;
             let c = worldToCanvas(center);
             let radX = radius / (xlim[1]-xlim[0]) * width;
-            if(radX > 8000 || radX < 0.2) return;
+            if(radX > 800 || radX < 0.2) return;
             ctx.save();
             ctx.globalAlpha = Math.min(1, Math.max(0.04, alpha));
             ctx.beginPath();
@@ -539,15 +508,6 @@
             ctx.strokeStyle = color;
             ctx.lineWidth = lw;
             ctx.stroke();
-            if(refPoint && isFinite(refPoint.re) && isFinite(refPoint.im)) {
-                let pRef = worldToCanvas(refPoint);
-                ctx.beginPath();
-                ctx.moveTo(c.x, c.y);
-                ctx.lineTo(pRef.x, pRef.y);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = lw * 1.2;
-                ctx.stroke();
-            }
             ctx.restore();
         }
         
@@ -556,33 +516,32 @@
             ctx.fillStyle = "#03050a";
             ctx.fillRect(0,0,width,height);
             for(let s of seeds) {
-                drawCircleWithTick(s, seedColor, 1.0, 1.3);
+                drawCircle(s.center, s.radius, seedColor, 1.0, 1.3);
             }
             if(seeds.length === 0) return;
             const inv = mobiusInverse(mobius.a, mobius.b, mobius.c, mobius.d);
             for(let s of seeds) {
                 if(direction === 'forward' || direction === 'both') {
                     let cur = s;
-                    for(let i=0; i<currentIter; i++) {
-                        let next = transformCircleWithRef(cur, mobius.a, mobius.b, mobius.c, mobius.d);
+                    for(let i=0; i<n_iter; i++) {
+                        let next = transformCircle(cur, mobius.a, mobius.b, mobius.c, mobius.d);
                         if(!next) break;
-                        let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
-                        drawCircleWithTick(next, fwdColor, alpha, 1.0);
+                        let alpha = Math.max(alphaMin, 1.0 - (i/(n_iter+1))*0.85);
+                        drawCircle(next.center, next.radius, fwdColor, alpha);
                         cur = next;
                     }
                 }
                 if(direction === 'backward' || direction === 'both') {
-                    let cur = s;
-                    for(let i=0; i<currentIter; i++) {
-                        let next = transformCircleWithRef(cur, inv.a, inv.b, inv.c, inv.d);
+                    let curb = s;
+                    for(let i=0; i<n_iter; i++) {
+                        let next = transformCircle(curb, inv.a, inv.b, inv.c, inv.d);
                         if(!next) break;
-                        let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
-                        drawCircleWithTick(next, bwdColor, alpha, 1.0);
-                        cur = next;
+                        let alpha = Math.max(alphaMin, 1.0 - (i/(n_iter+1))*0.85);
+                        drawCircle(next.center, next.radius, bwdColor, alpha);
+                        curb = next;
                     }
                 }
             }
-            currentIterSpan.innerText = `Iter: ${currentIter} / ${maxIter}`;
         }
         
         function redrawFull() {
@@ -590,6 +549,7 @@
             renderSeedList();
         }
         
+        // seed list UI (editable fields)
         function renderSeedList() {
             const container = document.getElementById('seedList');
             container.innerHTML = '';
@@ -623,7 +583,6 @@
                     seeds[idx].center.re = parseFloat(xInput.value);
                     seeds[idx].center.im = parseFloat(yInput.value);
                     seeds[idx].radius = parseFloat(radiusSlider.value);
-                    seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
                     radiusNum.value = seeds[idx].radius.toFixed(2);
                     redrawFull();
                 };
@@ -632,7 +591,6 @@
                 radiusSlider.addEventListener('input', () => {
                     let newRad = parseFloat(radiusSlider.value);
                     seeds[idx].radius = newRad;
-                    seeds[idx].refPoint = {re: seeds[idx].center.re + newRad, im: seeds[idx].center.im};
                     radiusNum.value = newRad.toFixed(2);
                     redrawFull();
                 });
@@ -642,7 +600,6 @@
                         seeds[idx].radius = Math.min(1.2, Math.max(0.05, newRad));
                         radiusSlider.value = seeds[idx].radius;
                         radiusNum.value = seeds[idx].radius.toFixed(2);
-                        seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
                         redrawFull();
                     }
                 });
@@ -653,6 +610,7 @@
             });
         }
         
+        // Drag handling
         function getSeedIndexUnderCursor(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -678,19 +636,15 @@
             if (idx !== -1) {
                 dragIndex = idx;
                 dragActive = true;
-                dragPerformed = false;
                 canvas.style.cursor = 'grabbing';
+                // prevent accidental click-to-add during drag
                 e.stopPropagation();
-            } else {
-                dragActive = false;
-                dragPerformed = false;
             }
         }
         
         function onMouseMove(e) {
             if (!dragActive || dragIndex === -1) return;
             e.preventDefault();
-            dragPerformed = true;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -698,7 +652,6 @@
             const canvasY = (e.clientY - rect.top) * scaleY;
             const world = canvasToWorld(canvasX, canvasY);
             seeds[dragIndex].center = {re: world.re, im: world.im};
-            seeds[dragIndex].refPoint = {re: seeds[dragIndex].center.re + seeds[dragIndex].radius, im: seeds[dragIndex].center.im};
             redrawFull();
         }
         
@@ -708,24 +661,23 @@
                 dragIndex = -1;
                 canvas.style.cursor = 'crosshair';
                 e.preventDefault();
-                setTimeout(() => { dragPerformed = false; }, 10);
             }
         }
         
+        // add seed by click (only if not dragging)
         function addSeedFromClick(e) {
-            if (dragPerformed) return;
+            if (dragActive) return; // ignore if finishing drag
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const canvasX = (e.clientX - rect.left) * scaleX;
             const canvasY = (e.clientY - rect.top) * scaleY;
             let world = canvasToWorld(canvasX, canvasY);
-            let radius = 0.25;
-            let refPoint = {re: world.re + radius, im: world.im};
-            seeds.push({center: {re: world.re, im: world.im}, radius: radius, refPoint: refPoint});
+            seeds.push({center: {re: world.re, im: world.im}, radius: 0.25});
             redrawFull();
         }
         
+        // Animation controls
         function stopAnimation() {
             if(animationInterval) { clearInterval(animationInterval); animationInterval = null; }
             playing = false;
@@ -736,9 +688,11 @@
             playing = true;
             playBtn.innerText = '⏸ PAUSE';
             let delay = parseInt(deltaSlider.value);
+            let maxIters = parseInt(iterNumber.value);
             animationInterval = setInterval(() => {
-                if(currentIter < maxIter) {
-                    currentIter = Math.min(maxIter, currentIter+1);
+                if(n_iter < maxIters) {
+                    n_iter = Math.min(maxIters, n_iter+1);
+                    iterNumber.value = n_iter;
                     redrawFull();
                 } else {
                     stopAnimation();
@@ -751,39 +705,28 @@
         }
         function stepOnce() {
             if(playing) stopAnimation();
-            if(currentIter < maxIter) {
-                currentIter = Math.min(maxIter, currentIter+1);
+            let maxIters = parseInt(iterNumber.value);
+            if(n_iter < maxIters) {
+                n_iter = Math.min(maxIters, n_iter+1);
+                iterNumber.value = n_iter;
                 redrawFull();
             }
-        }
-        function resetIterations() {
-            if(playing) stopAnimation();
-            currentIter = 0;
-            redrawFull();
         }
         function resetSeeds() {
             seeds = [];
             redrawFull();
         }
         function defaultSeeds() {
-            let radius = 0.5;
-            let center = {re: 0, im: 0};
-            let refPoint = {re: center.re + radius, im: center.im};
-            seeds = [{center: center, radius: radius, refPoint: refPoint}];
+            seeds = [
+                {center: {re: 0.3, im: 0.3}, radius: 0.25},
+                {center: {re: -0.5, im: 0.8}, radius: 0.2},
+                {center: {re: 1.0, im: -0.3}, radius: 0.3},
+                {center: {re: -0.2, im: -0.6}, radius: 0.22}
+            ];
             redrawFull();
         }
         
-        function updateMaxIter() {
-            let newMax = parseInt(maxIterInput.value);
-            if(isNaN(newMax)) newMax = 5;
-            newMax = Math.min(50, Math.max(1, newMax));
-            maxIter = newMax;
-            maxIterInput.value = maxIter;
-            if(currentIter > maxIter) currentIter = maxIter;
-            redrawFull();
-            if(playing && currentIter >= maxIter) stopAnimation();
-        }
-        
+        // Event binding
         function bindEvents() {
             a_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
             a_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
@@ -794,19 +737,25 @@
             d_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
             d_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
             
-            maxIterInput.addEventListener('change', updateMaxIter);
+            iterNumber.addEventListener('change', (e) => { 
+                let newVal = parseInt(e.target.value);
+                if(isNaN(newVal)) newVal = 3;
+                newVal = Math.min(100, Math.max(1, newVal));
+                n_iter = newVal;
+                iterNumber.value = n_iter;
+                if(!playing) redrawFull();
+            });
             alphaSlider.addEventListener('input', (e) => { alphaMin = parseFloat(e.target.value); alphaMinVal.innerText = alphaMin.toFixed(2); redrawFull(); });
             deltaSlider.addEventListener('input', (e) => { deltaVal.innerText = e.target.value+'ms'; if(playing) { stopAnimation(); startAnimation(); } });
             playBtn.addEventListener('click', togglePlay);
             stepBtn.addEventListener('click', stepOnce);
-            resetIterBtn.addEventListener('click', resetIterations);
             resetCanvasBtn.addEventListener('click', resetSeeds);
             defaultSeedsBtn.addEventListener('click', defaultSeeds);
             applyTypeBtn.addEventListener('click', () => { let t = typeSelect.value; if(t !== 'custom') applyPreset(t); });
             canvas.addEventListener('mousedown', onMouseDown);
             window.addEventListener('mousemove', onMouseMove);
             window.addEventListener('mouseup', onMouseUp);
-            canvas.addEventListener('click', addSeedFromClick);
+            canvas.addEventListener('click', addSeedFromClick); // only triggers if no drag
             radioBoth.addEventListener('change', () => { if(radioBoth.checked) direction = "both"; redrawFull(); });
             radioForward.addEventListener('change', () => { if(radioForward.checked) direction = "forward"; redrawFull(); });
             radioBackward.addEventListener('change', () => { if(radioBackward.checked) direction = "backward"; redrawFull(); });
@@ -815,8 +764,6 @@
         function init() {
             defaultSeeds();
             updateMatrixFromSliders();
-            maxIter = 25; currentIter = 25;
-            maxIterInput.value = 25;
             bindEvents();
             redrawFull();
             canvas.style.cursor = 'crosshair';

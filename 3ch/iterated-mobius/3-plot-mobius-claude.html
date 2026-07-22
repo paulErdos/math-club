@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Möbius Engine</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
+        #sidebar { width: 300px; background: #1a1a1a; padding: 20px; border-right: 1px solid #444; }
+        #canvas-container { flex: 1; position: relative; background: #000; }
+        canvas { width: 100%; height: 100%; display: block; }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; }
+        button { width: 100%; padding: 10px; margin-bottom: 10px; cursor: pointer; background: #333; color: white; border: none; }
+        button:hover { background: #555; }
+    </style>
+</head>
+<body>
+<div id="sidebar">
+    <button id="playBtn">Play</button>
+    <button id="stepBtn">Step</button>
+    <button id="resetBtn">Reset</button>
+    <label>Speed (ms)</label>
+    <input type="range" id="speed" min="10" max="1000" value="200">
+    <div id="sliders"></div>
+</div>
+<div id="canvas-container"><canvas id="c"></canvas></div>
+
+<script>
+const params = ['a_r', 'a_i', 'b_r', 'b_i', 'c_r', 'c_i', 'd_r', 'd_i'];
+const container = document.getElementById('sliders');
+params.forEach(p => {
+    container.innerHTML += `<div class="control-group"><label>${p}</label><input type="range" id="${p}" class="param" min="-3" max="3" step="0.1" value="0"></div>`;
+});
+document.getElementById('a_r').value = 1.1; document.getElementById('c_i').value = 0.15; document.getElementById('d_r').value = 0.9;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let fwd = [], bwd = [], playing = false, lastTime = 0;
+
+function getM() {
+    return {
+        a: {r: +document.getElementById('a_r').value, i: +document.getElementById('a_i').value},
+        b: {r: +document.getElementById('b_r').value, i: +document.getElementById('b_i').value},
+        c: {r: +document.getElementById('c_r').value, i: +document.getElementById('c_i').value},
+        d: {r: +document.getElementById('d_r').value, i: +document.getElementById('d_i').value}
+    };
+}
+
+function transform(M, z) {
+    let num = {r: M.a.r*z.r - M.a.i*z.i + M.b.r, i: M.a.r*z.i + M.a.i*z.r + M.b.i};
+    let den = {r: M.c.r*z.r - M.c.i*z.i + M.d.r, i: M.c.r*z.i + M.c.i*z.r + M.d.i};
+    let d2 = den.r*den.r + den.i*den.i;
+    return {r: (num.r*den.r + num.i*den.i)/d2, i: (num.i*den.r - num.r*den.i)/d2};
+}
+
+function draw() {
+    ctx.fillStyle = 'black'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = 'yellow';
+    fwd.forEach(p => { ctx.beginPath(); ctx.arc(canvas.width/2 + p.r*100, canvas.height/2 - p.i*100, 2, 0, 7); ctx.stroke(); });
+    ctx.strokeStyle = 'cyan';
+    bwd.forEach(p => { ctx.beginPath(); ctx.arc(canvas.width/2 + p.r*100, canvas.height/2 - p.i*100, 2, 0, 7); ctx.stroke(); });
+}
+
+function step() {
+    let M = getM();
+    let Inv = {a: M.d, b: {r:-M.b.r, i:-M.b.i}, c: {r:-M.c.r, i:-M.c.i}, d: M.a};
+    let fz = fwd.length ? fwd[fwd.length-1] : {r: 0.5, i: 0};
+    let bz = bwd.length ? bwd[bwd.length-1] : {r: 0.5, i: 0};
+    fwd.push(transform(M, fz));
+    bwd.push(transform(Inv, bz));
+    draw();
+}
+
+document.getElementById('playBtn').onclick = (e) => { playing = !playing; e.target.innerText = playing ? 'Pause' : 'Play'; };
+document.getElementById('stepBtn').onclick = step;
+document.getElementById('resetBtn').onclick = () => { fwd = []; bwd = []; draw(); };
+document.querySelectorAll('.param').forEach(el => el.oninput = () => { fwd = []; bwd = []; draw(); });
+
+function loop(t) {
+    if(playing && t - lastTime > document.getElementById('speed').value) { step(); lastTime = t; }
+    requestAnimationFrame(loop);
+}
+canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

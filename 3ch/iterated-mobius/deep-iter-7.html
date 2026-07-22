@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Möbius Transform - 1200px Canvas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Möbius Transform - All Circles with Orientation Tick</title>
     <style>
         * {
             user-select: none;
@@ -25,8 +25,6 @@
             padding: 20px;
             box-shadow: 0 20px 35px rgba(0,0,0,0.6);
             border: 1px solid #2a2e44;
-            max-width: 98vw;
-            overflow-x: auto;
         }
         .canvas-panel {
             display: flex;
@@ -39,8 +37,6 @@
             display: block;
             border: 1px solid #2f354c;
             cursor: crosshair;
-            width: 100%;
-            height: auto;
         }
         .controls {
             margin-top: 20px;
@@ -207,6 +203,10 @@
             margin-top: 8px;
             text-align: center;
         }
+        hr {
+            border-color: #262e4a;
+            margin: 12px 0;
+        }
         h3 {
             margin: 0 0 8px 0;
             font-size: 0.9rem;
@@ -242,16 +242,12 @@
             font-size: 0.75rem;
             color: #ffd966;
         }
-        @media (max-width: 1400px) {
-            .container { padding: 10px; }
-            canvas { max-width: 100%; height: auto; }
-        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="canvas-panel">
-        <canvas id="mobiusCanvas" width="1200" height="1200" style="width:1200px;height:1200px; max-width:100%; height:auto;"></canvas>
+        <canvas id="mobiusCanvas" width="700" height="700" style="width:700px;height:700px"></canvas>
     </div>
 
     <div class="controls">
@@ -306,7 +302,7 @@
                 <button id="defaultSeedsBtn">✨ DEFAULT SEEDS</button>
             </div>
             <div class="seed-list" id="seedList"></div>
-            <div class="status">● Ticks rotate with transform (backward rotates opposite direction)</div>
+            <div class="status">● Every circle has a right-pointing tick → shows rotation/inversion</div>
         </div>
     </div>
 </div>
@@ -316,7 +312,7 @@
         // ---------- utilities ----------
         const canvas = document.getElementById('mobiusCanvas');
         const ctx = canvas.getContext('2d');
-        const width = 1200, height = 1200;
+        const width = 700, height = 700;
         let xlim = [-3.2, 3.2];
         let ylim = [-3.2, 3.2];
 
@@ -338,9 +334,22 @@
             return complexDiv(num, den);
         }
 
-        // Circle with reference point
-        function transformCircleWithRef(circle, a,b,c,d) {
-            let {center, radius, refPoint} = circle;
+        function circleFromThree(p1,p2,p3) {
+            const x1=p1.re, y1=p1.im, x2=p2.re, y2=p2.im, x3=p3.re, y3=p3.im;
+            const D = 2.0 * (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2));
+            if(Math.abs(D) < 1e-12) return null;
+            const r1sq = x1*x1 + y1*y1;
+            const r2sq = x2*x2 + y2*y2;
+            const r3sq = x3*x3 + y3*y3;
+            const ux = (r1sq*(y2 - y3) + r2sq*(y3 - y1) + r3sq*(y1 - y2)) / D;
+            const uy = (r1sq*(x3 - x2) + r2sq*(x1 - x3) + r3sq*(x2 - x1)) / D;
+            const center = {re: ux, im: uy};
+            const radius = Math.hypot(center.re - x1, center.im - y1);
+            return {center, radius};
+        }
+
+        function transformCircle(circle, a,b,c,d) {
+            let {center, radius} = circle;
             const baseAngle = Math.PI/12;
             let angles = [baseAngle, baseAngle + 2*Math.PI/3, baseAngle + 4*Math.PI/3];
             let pts = angles.map(ang => ({re: center.re + radius*Math.cos(ang), im: center.im + radius*Math.sin(ang)}));
@@ -359,34 +368,12 @@
                     }
                 }
             }
-            let mappedPts = pts.map(p => mobiusMap(p, a,b,c,d));
-            if(!mappedPts.every(p => isFinite(p.re) && isFinite(p.im))) return null;
-            const newCirc = circleFromThree(mappedPts[0], mappedPts[1], mappedPts[2]);
+            let mapped = pts.map(p => mobiusMap(p, a,b,c,d));
+            if(!mapped.every(p => isFinite(p.re) && isFinite(p.im))) return null;
+            const newCirc = circleFromThree(mapped[0], mapped[1], mapped[2]);
             if(!newCirc) return null;
             if(!isFinite(newCirc.radius) || newCirc.radius > 1e5 || newCirc.radius < 1e-12) return null;
-            
-            let newRef = mobiusMap(refPoint, a,b,c,d);
-            if(!isFinite(newRef.re) || !isFinite(newRef.im)) return null;
-            
-            return {
-                center: newCirc.center,
-                radius: newCirc.radius,
-                refPoint: newRef
-            };
-        }
-        
-        function circleFromThree(p1,p2,p3) {
-            const x1=p1.re, y1=p1.im, x2=p2.re, y2=p2.im, x3=p3.re, y3=p3.im;
-            const D = 2.0 * (x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2));
-            if(Math.abs(D) < 1e-12) return null;
-            const r1sq = x1*x1 + y1*y1;
-            const r2sq = x2*x2 + y2*y2;
-            const r3sq = x3*x3 + y3*y3;
-            const ux = (r1sq*(y2 - y3) + r2sq*(y3 - y1) + r3sq*(y1 - y2)) / D;
-            const uy = (r1sq*(x3 - x2) + r2sq*(x1 - x3) + r3sq*(x2 - x1)) / D;
-            const center = {re: ux, im: uy};
-            const radius = Math.hypot(center.re - x1, center.im - y1);
-            return {center, radius};
+            return newCirc;
         }
 
         function mobiusInverse(a,b,c,d) {
@@ -454,9 +441,9 @@
         let animationInterval = null;
         let playing = false;
         
+        // Drag state
         let dragIndex = -1;
         let dragActive = false;
-        let dragPerformed = false;
         
         // UI elements
         const a_re_slider = document.getElementById('a_re');
@@ -515,6 +502,7 @@
             redrawFull();
         }
         
+        // drawing helpers with orientation tick for EVERY circle
         function worldToCanvas(p) {
             let x = (p.re - xlim[0]) / (xlim[1] - xlim[0]) * width;
             let y = height - (p.im - ylim[0]) / (ylim[1] - ylim[0]) * height;
@@ -526,28 +514,29 @@
             return {re: x, im: y};
         }
         
-        function drawCircleWithTick(circle, color, alpha, lw=1.0) {
-            let {center, radius, refPoint} = circle;
+        // Draw circle with a radial tick at angle 0 (pointing right)
+        function drawCircleWithTick(center, radius, color, alpha, lw=1.0) {
             if(!isFinite(center.re) || !isFinite(center.im) || !isFinite(radius) || radius < 1e-8) return;
             let c = worldToCanvas(center);
             let radX = radius / (xlim[1]-xlim[0]) * width;
-            if(radX > 8000 || radX < 0.2) return;
+            if(radX > 800 || radX < 0.2) return;
             ctx.save();
             ctx.globalAlpha = Math.min(1, Math.max(0.04, alpha));
+            // draw circle
             ctx.beginPath();
             ctx.arc(c.x, c.y, radX, 0, 2*Math.PI);
             ctx.strokeStyle = color;
             ctx.lineWidth = lw;
             ctx.stroke();
-            if(refPoint && isFinite(refPoint.re) && isFinite(refPoint.im)) {
-                let pRef = worldToCanvas(refPoint);
-                ctx.beginPath();
-                ctx.moveTo(c.x, c.y);
-                ctx.lineTo(pRef.x, pRef.y);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = lw * 1.2;
-                ctx.stroke();
-            }
+            // draw tick: line from center to right edge
+            let tickEndX = c.x + radX;
+            let tickEndY = c.y;
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.y);
+            ctx.lineTo(tickEndX, tickEndY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lw * 1.2;
+            ctx.stroke();
             ctx.restore();
         }
         
@@ -555,30 +544,32 @@
             ctx.clearRect(0,0,width,height);
             ctx.fillStyle = "#03050a";
             ctx.fillRect(0,0,width,height);
+            // draw seed circles with tick
             for(let s of seeds) {
-                drawCircleWithTick(s, seedColor, 1.0, 1.3);
+                drawCircleWithTick(s.center, s.radius, seedColor, 1.0, 1.3);
             }
             if(seeds.length === 0) return;
             const inv = mobiusInverse(mobius.a, mobius.b, mobius.c, mobius.d);
+            // forward and backward iterations up to currentIter
             for(let s of seeds) {
                 if(direction === 'forward' || direction === 'both') {
                     let cur = s;
                     for(let i=0; i<currentIter; i++) {
-                        let next = transformCircleWithRef(cur, mobius.a, mobius.b, mobius.c, mobius.d);
+                        let next = transformCircle(cur, mobius.a, mobius.b, mobius.c, mobius.d);
                         if(!next) break;
                         let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
-                        drawCircleWithTick(next, fwdColor, alpha, 1.0);
+                        drawCircleWithTick(next.center, next.radius, fwdColor, alpha, 1.0);
                         cur = next;
                     }
                 }
                 if(direction === 'backward' || direction === 'both') {
-                    let cur = s;
+                    let curb = s;
                     for(let i=0; i<currentIter; i++) {
-                        let next = transformCircleWithRef(cur, inv.a, inv.b, inv.c, inv.d);
+                        let next = transformCircle(curb, inv.a, inv.b, inv.c, inv.d);
                         if(!next) break;
                         let alpha = Math.max(alphaMin, 1.0 - (i/(Math.max(1,currentIter)))*0.85);
-                        drawCircleWithTick(next, bwdColor, alpha, 1.0);
-                        cur = next;
+                        drawCircleWithTick(next.center, next.radius, bwdColor, alpha, 1.0);
+                        curb = next;
                     }
                 }
             }
@@ -590,6 +581,7 @@
             renderSeedList();
         }
         
+        // seed list UI (editable fields)
         function renderSeedList() {
             const container = document.getElementById('seedList');
             container.innerHTML = '';
@@ -606,7 +598,7 @@
                         </div>
                         <div class="radius-control">
                             <span>r:</span>
-                            <input type="range" class="radius-slider" data-idx="${idx}" min="0.05" max="1.2" step="0.01" value="${seed.radius.toFixed(2)}" style="width:80px">
+                            <input type="range" class="radius-slider" data-idx="${idx}" min="0.05" max="1.2" step="0.01" value="${seed.radius.toFixed(2)}" style="width:80px; cursor:grab;">
                             <input type="number" step="0.01" class="radius-num" data-idx="${idx}" value="${seed.radius.toFixed(2)}" style="width:50px">
                         </div>
                         <button class="del-seed" data-idx="${idx}">✖</button>
@@ -623,7 +615,6 @@
                     seeds[idx].center.re = parseFloat(xInput.value);
                     seeds[idx].center.im = parseFloat(yInput.value);
                     seeds[idx].radius = parseFloat(radiusSlider.value);
-                    seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
                     radiusNum.value = seeds[idx].radius.toFixed(2);
                     redrawFull();
                 };
@@ -632,7 +623,6 @@
                 radiusSlider.addEventListener('input', () => {
                     let newRad = parseFloat(radiusSlider.value);
                     seeds[idx].radius = newRad;
-                    seeds[idx].refPoint = {re: seeds[idx].center.re + newRad, im: seeds[idx].center.im};
                     radiusNum.value = newRad.toFixed(2);
                     redrawFull();
                 });
@@ -642,7 +632,6 @@
                         seeds[idx].radius = Math.min(1.2, Math.max(0.05, newRad));
                         radiusSlider.value = seeds[idx].radius;
                         radiusNum.value = seeds[idx].radius.toFixed(2);
-                        seeds[idx].refPoint = {re: seeds[idx].center.re + seeds[idx].radius, im: seeds[idx].center.im};
                         redrawFull();
                     }
                 });
@@ -653,6 +642,7 @@
             });
         }
         
+        // Drag handling for circles
         function getSeedIndexUnderCursor(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -678,19 +668,14 @@
             if (idx !== -1) {
                 dragIndex = idx;
                 dragActive = true;
-                dragPerformed = false;
                 canvas.style.cursor = 'grabbing';
                 e.stopPropagation();
-            } else {
-                dragActive = false;
-                dragPerformed = false;
             }
         }
         
         function onMouseMove(e) {
             if (!dragActive || dragIndex === -1) return;
             e.preventDefault();
-            dragPerformed = true;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -698,7 +683,6 @@
             const canvasY = (e.clientY - rect.top) * scaleY;
             const world = canvasToWorld(canvasX, canvasY);
             seeds[dragIndex].center = {re: world.re, im: world.im};
-            seeds[dragIndex].refPoint = {re: seeds[dragIndex].center.re + seeds[dragIndex].radius, im: seeds[dragIndex].center.im};
             redrawFull();
         }
         
@@ -708,24 +692,22 @@
                 dragIndex = -1;
                 canvas.style.cursor = 'crosshair';
                 e.preventDefault();
-                setTimeout(() => { dragPerformed = false; }, 10);
             }
         }
         
         function addSeedFromClick(e) {
-            if (dragPerformed) return;
+            if (dragActive) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const canvasX = (e.clientX - rect.left) * scaleX;
             const canvasY = (e.clientY - rect.top) * scaleY;
             let world = canvasToWorld(canvasX, canvasY);
-            let radius = 0.25;
-            let refPoint = {re: world.re + radius, im: world.im};
-            seeds.push({center: {re: world.re, im: world.im}, radius: radius, refPoint: refPoint});
+            seeds.push({center: {re: world.re, im: world.im}, radius: 0.25});
             redrawFull();
         }
         
+        // Animation: from 0 up to maxIter
         function stopAnimation() {
             if(animationInterval) { clearInterval(animationInterval); animationInterval = null; }
             playing = false;
@@ -766,10 +748,12 @@
             redrawFull();
         }
         function defaultSeeds() {
-            let radius = 0.5;
-            let center = {re: 0, im: 0};
-            let refPoint = {re: center.re + radius, im: center.im};
-            seeds = [{center: center, radius: radius, refPoint: refPoint}];
+            seeds = [
+                {center: {re: 0.3, im: 0.3}, radius: 0.25},
+                {center: {re: -0.5, im: 0.8}, radius: 0.2},
+                {center: {re: 1.0, im: -0.3}, radius: 0.3},
+                {center: {re: -0.2, im: -0.6}, radius: 0.22}
+            ];
             redrawFull();
         }
         
@@ -784,6 +768,7 @@
             if(playing && currentIter >= maxIter) stopAnimation();
         }
         
+        // Event binding
         function bindEvents() {
             a_re_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
             a_im_slider.addEventListener('input', () => { updateMatrixFromSliders(); if(!playing) redrawFull(); });
@@ -815,8 +800,8 @@
         function init() {
             defaultSeeds();
             updateMatrixFromSliders();
-            maxIter = 25; currentIter = 25;
-            maxIterInput.value = 25;
+            maxIter = 5; currentIter = 0;
+            maxIterInput.value = 5;
             bindEvents();
             redrawFull();
             canvas.style.cursor = 'crosshair';

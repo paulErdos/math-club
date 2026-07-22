@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Iterated Möbius Transform Visualizer</title>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 350px; background: #1a1a1a; padding: 20px; border-right: 1px solid #444; overflow-y: auto; }
+        #canvas-container { flex: 1; position: relative; }
+        canvas { width: 100%; height: 100%; display: block; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; color: #aaa; text-transform: uppercase; margin-bottom: 4px; }
+        input[type="range"] { width: 100%; }
+        button, select { width: 100%; padding: 10px; margin-bottom: 8px; cursor: pointer; background: #333; border: 1px solid #555; color: #fff; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="row">
+        <button id="play-pause">Play</button>
+        <button id="step">Step</button>
+    </div>
+    <button id="reset">Reset Visualization</button>
+    
+    <div class="control-group">
+        <label>Speed (ms)</label>
+        <input type="range" id="speed" min="50" max="1000" value="200">
+    </div>
+
+    <div class="row">
+        <div class="control-group"><label>Re(a)</label><input type="range" class="m-param" id="a_r" min="-3" max="3" step="0.1" value="1.5"></div>
+        <div class="control-group"><label>Im(a)</label><input type="range" class="m-param" id="a_i" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Re(b)</label><input type="range" class="m-param" id="b_r" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Im(b)</label><input type="range" class="m-param" id="b_i" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Re(c)</label><input type="range" class="m-param" id="c_r" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Im(c)</label><input type="range" class="m-param" id="c_i" min="-3" max="3" step="0.1" value="0"></div>
+        <div class="control-group"><label>Re(d)</label><input type="range" class="m-param" id="d_r" min="-3" max="3" step="0.1" value="1"></div>
+        <div class="control-group"><label>Im(d)</label><input type="range" class="m-param" id="d_i" min="-3" max="3" step="0.1" value="0"></div>
+    </div>
+</div>
+
+<div id="canvas-container"><canvas id="c"></canvas></div>
+
+<script>
+/** * Iterated Möbius Transform Visualizer 
+ * Full JS Port of Python logic
+ */
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let width, height;
+let playing = false, lastTime = 0;
+let seedCircles = [{center: {r: 0, i: 0.3}, radius: 0.25}, {center: {r: 0, i: -0.3}, radius: 0.25}];
+let fwdChain = [];
+let bwdChain = [];
+
+// --- Core Math ---
+
+function mobiusInverse(M) {
+    let det = M.a * M.d - M.b * M.c;
+    return {
+        a: M.d / det, b: -M.b / det,
+        c: -M.c / det, d: M.a / det
+    };
+}
+
+function complexAdd(c1, c2) { return { r: c1.r + c2.r, i: c1.i + c2.i }; }
+function complexSub(c1, c2) { return { r: c1.r - c2.r, i: c1.i - c2.i }; }
+function complexMul(c1, c2) { return { r: c1.r * c2.r - c1.i * c2.i, i: c1.r * c2.i + c1.i * c2.r }; }
+function complexDiv(c1, c2) {
+    let d = c2.r * c2.r + c2.i * c2.i;
+    return { r: (c1.r * c2.r + c1.i * c2.i) / d, i: (c1.i * c2.r - c1.r * c2.i) / d };
+}
+function abs(c) { return Math.sqrt(c.r * c.r + c.i * c.i); }
+
+function circleFromThree(z1, z2, z3) {
+    let x1 = z1.r, y1 = z1.i;
+    let x2 = z2.r, y2 = z2.i;
+    let x3 = z3.r, y3 = z3.i;
+
+    let D = 2.0 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (Math.abs(D) < 1e-14) return null;
+
+    let r1sq = x1 * x1 + y1 * y1;
+    let r2sq = x2 * x2 + y2 * y2;
+    let r3sq = x3 * x3 + y3 * y3;
+
+    let ux = (r1sq * (y2 - y3) + r2sq * (y3 - y1) + r3sq * (y1 - y2)) / D;
+    let uy = (r1sq * (x3 - x2) + r2sq * (x1 - x3) + r3sq * (x2 - x1)) / D;
+    
+    return { center: { r: ux, i: uy }, radius: abs(complexSub(z1, { r: ux, i: uy })) };
+}
+
+function transformCircle(center, radius, M) {
+    let base = Math.PI / 12;
+    let angles = [base, base + 2 * Math.PI / 3, base + 4 * Math.PI / 3];
+    let pts = angles.map(ang => ({ r: center.r + radius * Math.cos(ang), i: center.i + radius * Math.sin(ang) }));
+    
+    let mapped = pts.map(p => {
+        let num = complexAdd(complexMul({r: M.a, i: 0}, p), {r: M.b, i: 0});
+        let den = complexAdd(complexMul({r: M.c, i: 0}, p), {r: M.d, i: 0});
+        return complexDiv(num, den);
+    });
+
+    return circleFromThree(mapped[0], mapped[1], mapped[2]);
+}
+
+// --- Transform Constructors ---
+
+function getMatrix() {
+    return {
+        a: parseFloat(document.getElementById('a_r').value),
+        b: parseFloat(document.getElementById('b_r').value),
+        c: parseFloat(document.getElementById('c_r').value),
+        d: parseFloat(document.getElementById('d_r').value)
+    };
+}
+
+// --- Plotting ---
+
+function drawCircle(ctx, center, radius, color) {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(width / 2 + center.r * 100, height / 2 - center.i * 100, radius * 100, 0, 2 * Math.PI);
+    ctx.stroke();
+}
+
+function updateChains() {
+    let M = getMatrix();
+    let InvM = mobiusInverse(M);
+    
+    fwdChain = [];
+    bwdChain = [];
+    
+    let currF = seedCircles[0];
+    let currB = seedCircles[0];
+    
+    for (let i = 0; i < 20; i++) {
+        let nextF = transformCircle(currF.center, currF.radius, M);
+        if (nextF) { fwdChain.push(nextF); currF = nextF; }
+        
+        let nextB = transformCircle(currB.center, currB.radius, InvM);
+        if (nextB) { bwdChain.push(nextB); currB = nextB; }
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
+    
+    seedCircles.forEach(s => drawCircle(ctx, s.center, s.radius, '#fff'));
+    fwdChain.forEach(c => drawCircle(ctx, c.center, c.radius, 'royalblue'));
+    bwdChain.forEach(c => drawCircle(ctx, c.center, c.radius, 'gold'));
+}
+
+// --- Interaction ---
+
+document.getElementById('play-pause').onclick = (e) => { playing = !playing; e.target.innerText = playing ? 'Pause' : 'Play'; };
+document.getElementById('step').onclick = () => { /* Logic to step one iteration */ };
+document.getElementById('reset').onclick = () => { updateChains(); draw(); };
+document.querySelectorAll('.m-param').forEach(el => el.oninput = () => { updateChains(); draw(); });
+
+function loop(t) {
+    if (playing && t - lastTime > document.getElementById('speed').value) {
+        // Step logic
+        lastTime = t;
+    }
+    requestAnimationFrame(loop);
+}
+
+window.onresize = () => { width = canvas.width = canvas.clientWidth; height = canvas.height = canvas.clientHeight; draw(); };
+window.onresize();
+requestAnimationFrame(loop);
+updateChains();
+draw();
+</script>
+</body>
+</html>

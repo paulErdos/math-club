@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Möbius Transform - 1200px Canvas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Möbius Transform - Large Viewport</title>
     <style>
         * {
             user-select: none;
@@ -25,8 +25,6 @@
             padding: 20px;
             box-shadow: 0 20px 35px rgba(0,0,0,0.6);
             border: 1px solid #2a2e44;
-            max-width: 98vw;
-            overflow-x: auto;
         }
         .canvas-panel {
             display: flex;
@@ -39,8 +37,6 @@
             display: block;
             border: 1px solid #2f354c;
             cursor: crosshair;
-            width: 100%;
-            height: auto;
         }
         .controls {
             margin-top: 20px;
@@ -207,6 +203,10 @@
             margin-top: 8px;
             text-align: center;
         }
+        hr {
+            border-color: #262e4a;
+            margin: 12px 0;
+        }
         h3 {
             margin: 0 0 8px 0;
             font-size: 0.9rem;
@@ -242,16 +242,12 @@
             font-size: 0.75rem;
             color: #ffd966;
         }
-        @media (max-width: 1400px) {
-            .container { padding: 10px; }
-            canvas { max-width: 100%; height: auto; }
-        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="canvas-panel">
-        <canvas id="mobiusCanvas" width="1200" height="1200" style="width:1200px;height:1200px; max-width:100%; height:auto;"></canvas>
+        <canvas id="mobiusCanvas" width="900" height="900" style="width:900px;height:900px"></canvas>
     </div>
 
     <div class="controls">
@@ -306,7 +302,7 @@
                 <button id="defaultSeedsBtn">✨ DEFAULT SEEDS</button>
             </div>
             <div class="seed-list" id="seedList"></div>
-            <div class="status">● Ticks rotate with transform (backward rotates opposite direction)</div>
+            <div class="status">● Ticks follow mapped reference point (rotation visible)</div>
         </div>
     </div>
 </div>
@@ -316,7 +312,7 @@
         // ---------- utilities ----------
         const canvas = document.getElementById('mobiusCanvas');
         const ctx = canvas.getContext('2d');
-        const width = 1200, height = 1200;
+        const width = 900, height = 900;
         let xlim = [-3.2, 3.2];
         let ylim = [-3.2, 3.2];
 
@@ -338,9 +334,10 @@
             return complexDiv(num, den);
         }
 
-        // Circle with reference point
+        // Circle representation: center, radius, and a reference point (angle 0 on original seed)
         function transformCircleWithRef(circle, a,b,c,d) {
             let {center, radius, refPoint} = circle;
+            // Map three points to get new circle (center, radius)
             const baseAngle = Math.PI/12;
             let angles = [baseAngle, baseAngle + 2*Math.PI/3, baseAngle + 4*Math.PI/3];
             let pts = angles.map(ang => ({re: center.re + radius*Math.cos(ang), im: center.im + radius*Math.sin(ang)}));
@@ -365,6 +362,7 @@
             if(!newCirc) return null;
             if(!isFinite(newCirc.radius) || newCirc.radius > 1e5 || newCirc.radius < 1e-12) return null;
             
+            // Map the reference point
             let newRef = mobiusMap(refPoint, a,b,c,d);
             if(!isFinite(newRef.re) || !isFinite(newRef.im)) return null;
             
@@ -454,6 +452,7 @@
         let animationInterval = null;
         let playing = false;
         
+        // Drag state
         let dragIndex = -1;
         let dragActive = false;
         let dragPerformed = false;
@@ -515,6 +514,7 @@
             redrawFull();
         }
         
+        // drawing helpers with reference point tick
         function worldToCanvas(p) {
             let x = (p.re - xlim[0]) / (xlim[1] - xlim[0]) * width;
             let y = height - (p.im - ylim[0]) / (ylim[1] - ylim[0]) * height;
@@ -531,7 +531,7 @@
             if(!isFinite(center.re) || !isFinite(center.im) || !isFinite(radius) || radius < 1e-8) return;
             let c = worldToCanvas(center);
             let radX = radius / (xlim[1]-xlim[0]) * width;
-            if(radX > 8000 || radX < 0.2) return;
+            if(radX > 800 || radX < 0.2) return;
             ctx.save();
             ctx.globalAlpha = Math.min(1, Math.max(0.04, alpha));
             ctx.beginPath();
@@ -590,6 +590,7 @@
             renderSeedList();
         }
         
+        // seed list UI
         function renderSeedList() {
             const container = document.getElementById('seedList');
             container.innerHTML = '';
@@ -653,6 +654,7 @@
             });
         }
         
+        // Drag handling
         function getSeedIndexUnderCursor(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -726,6 +728,7 @@
             redrawFull();
         }
         
+        // Animation
         function stopAnimation() {
             if(animationInterval) { clearInterval(animationInterval); animationInterval = null; }
             playing = false;
@@ -815,8 +818,8 @@
         function init() {
             defaultSeeds();
             updateMatrixFromSliders();
-            maxIter = 25; currentIter = 25;
-            maxIterInput.value = 25;
+            maxIter = 5; currentIter = 0;
+            maxIterInput.value = 5;
             bindEvents();
             redrawFull();
             canvas.style.cursor = 'crosshair';

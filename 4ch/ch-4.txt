@@ -1,0 +1,897 @@
+4.1 Introduction
+Having studied functions of complex numbers, we now turn to the calculus of such
+functions.
+To know the graph of an ordinary real function is to know the function com-
+pletely, and so to understand curves is to understand real functions. The key insight
+of differential calculus is that if we take a common or garden curve, place it under a
+microscope and examine it using lenses of greater and greater magnifying power,
+each little piece looks like a straight line. When produced, these infinitesimal pieces
+of straight line are the tangents to the curve, and their directions describe the local
+behaviour of the curve. Thinking of the curve as the graph of f(x), these directions
+are in turn described by the derivative, f′(x).
+Despite the fact that we cannot draw the graph of a complex function, in this
+chapter we shall see how it is still possible to describe the local behaviour of a
+complex mapping by means of a complex analogue of the ordinary derivative—the
+“amplitwist”.
+4.2 A Puzzling Phenomenon
+Throughout Chapter 2 we witnessed a very strange phenomenon. Whenever we
+generalized a familiar real function to a corresponding complex function, the map-
+ping sent infinitesimal squares to infinitesimal squares. At present this is a purely
+empirical observation based on using a computer to draw pictures of the map-
+pings. In this chapter we begin to explore the theoretical underpinnings of the
+phenomenon.
+Let’s go back and take a closer look at a simple mapping like zÞÑ w= z2. As we
+already know, this maps the origin-centred circle |z|= rinto the circle |w|= r2, and
+it maps the ray arg(z) = θinto the ray arg(w) = 2θ. An obvious consequence of this
+Visual Complex Analysis. 25th Anniversary Edition. Tristan Needham, Oxford University Press.
+© Tristan Needham (2023). DOI: 10.1093/oso/9780192868916.003.0004
+214 Differentiation: The Amplitwist Concept
+[4.1] The tip of the iceberg: small squares map to small squares—but why? Clearly the
+mapping z ÞÑ z2 preserves the orthogonality of origin-centred rays and circles. So the
+small, ultimately vanishing “squares” on the left must be mapped to small, ultimately van-
+ishing rectangles on the right. Very surprisingly, though, squares are ultimately mapped to
+squares! As we shall see, this is a consequence of the fact that the mapping is conformal.
+is that the right angle of intersection between such circles and rays in the z-plane
+is preserved by the mapping, which is to say that their images in the w-plane also
+meet at right angles. As illustrated in [4.1], a grid of infinitesimal squares formed
+from such circles and rays must therefore be mapped to an image grid composed of
+infinitesimal rectangles. However, this does not explain why these image rectangles
+must again be squares.
+As we will explain shortly, the fact that infinitesimal squares are preserved is
+just one consequence of the fact that z ÞÑ w = z2 is conformal everywhere except
+at the two critical points z = 0 and z = ∞, where angles are doubled. In par-
+ticular, any pair of orthogonal curves is mapped to another pair of orthogonal
+curves. In order to give another example of this, we first dismember our map-
+ping into its real and imaginary parts. Writing z = x+ iyand w = u+ iv, we
+obtain
+u+ iv= w= z2 = (x+ iy)2 = (x2
+− y2) + i2xy.
+Thus the new coordinates are given in terms of the old ones by
+u = x2
+− y2
+,
+(4.1)
+v = 2xy.
+We now forget (temporarily!) that we are in C, and think of (4.1) as simply rep-
+resenting a mapping of R2 to R2. If we let our point (x, y) slide along any of the
+rectangular hyperbolas with equation 2xy= const., then we see from (4.1) that its
+A Puzzling Phenomenon 215
+[4.2] Again, small squares map to small squares—but why? The pre-images of the hori-
+zontal and vertical lines on the right are the two families of hyperbolas on the left, which a
+computation confirms are orthogonal to each other, as illustrated. Thus the squares on the
+right must have pre-images that are rectangles on the left. But, once again, surprisingly,
+the pre-images of the squares are actually squares!
+image (u, v) will move on a horizontal line v= const. Likewise, the preimages of
+the vertical lines u= const. will be another family of rectangular hyperbolas with
+equations (x2
+− y2) = const. Since their images are orthogonal, the claimed con-
+formality of zÞÑ z2 implies that these two kinds of hyperbolas should themselves
+be orthogonal.
+Figure [4.2] makes it clear that they are indeed orthogonal. We may verify
+this mathematically by recalling that two curves are orthogonal at a point of
+intersection if the product of their slopes at that point is equal to−1. Implicitly
+differentiating the equations of the hyperbolas, we find that
+x2
+− y2
+= const. ⇒ x− yy′
+= 0 ⇒ y′ = +(x/y),
+2xy= const. ⇒ y+ xy′
+= 0 ⇒ y′ = −(y/x).
+Thus the product of the slopes of the two kinds of hyperbola at a point of
+intersection is−1, as was to be shown.
+Clearly we could carry on in this way, analysing the effect of the mapping on
+one pair of curves after another, but what is really needed is a general argument
+showing that if two curves meet at some arbitrary angle ϕ, then their images under
+(4.1) will also meet at angle ϕ. To obtain such an argument, we shall continue to
+pretend that we are living in the less rich structure of R2 (rather than our own
+home C) and investigate the local properties of a general mapping of the plane to
+itself.
+216 Differentiation: The Amplitwist Concept
+4.3 Local Description of Mappings in the Plane
+4.3.1 Introduction
+Referring to [4.3], it’s clear that to find out whether any given mapping is confor-
+mal or not will require only a local investigation of what is happening very near
+to the intersection point q. To make this clearer still, recognize that if we wish to
+measure ϕ, or indeed even define it, we need to draw the tangents [dotted] to both
+curves and then measure the angle between them. We could draw a very good
+approximation to one of these tangents simply by joining qto any nearby point p
+on the curve. Of course the nearer p is to q, the better will the chord qpapprox-
+imate the actual tangent. Since we are only concerned here with directions and
+angles (rather than positions) we may dispense with the tangent itself, and instead
+use the infinitesimal vector qpthat points along it. Likewise, after we have per-
+formed the mapping, we are not interested in the positions of the image points
+Qand Pthemselves; rather, we want the infinitesimal connecting vector QPthat
+describes the direction of the new tangent at Q. We will call this infinitesimal vector
+QPthe image of the vector qp. However natural this terminology may seem, note
+that this really is a new sense of the word “image”.
+Let us now summarize our strategy. Given formulae such as (4.1), which describe
+the mapping of the points to their image points, we wish to discover the induced
+mapping of infinitesimal vectors emanating from a point qto their image vectors
+emanating from the image point Q. In principle, we could then apply the latter
+mapping to qpand to qs, yielding their images QPand QS, and hence the angle
+of intersection of the image curves through Q.
+[4.3] Conformal mappings. The angle ϕbetween the curves passing through qon the
+left is defined to be the angle between their tangents there. But as pand smerge with q,
+this angle ϕ ≍ ∠pqs. Let the images of p, q, sbe P, Q, S, respectively. Then to prove
+conformality, we need to show that ∠PQS ≍ ϕ ≍ ∠pqs. To do so, we need to show that
+the transformation that carries the initial connecting vectors on the left to their “images” on
+the right (ultimately) does not alter the angle between them. This (linear) transformation
+is called the Jacobian, and its coordinate description in the case of a general mapping is
+derived via the next figure.
+Local Description of Mappings in the Plane 217
+4.3.2 The Jacobian Matrix
+Consider [4.4]. As discussed, the direction of the illustrated curve through q is
+being described with an infinitesimal vector dx
+dy ; the infinitesimal image vec-
+tor du
+dv gives the direction of the image curve through Q. We can determine the
+component duof du
+dv as follows:
+du= total change in udue to moving along dx
+dy
+= (change in uproduced by moving dxin the x-direction)
++
+(change in uproduced by moving dyin the y-direction)
+= (rate of change of uwith x)· (change dxin x)
++
+(rate of change of uwith y)· (change dyin y)
+= (Bxu) dx + (Byu) dy,
+where Bx = B/Bxetc. Likewise, we find that the vertical component is given by the
+formula
+dv= (Bxv) dx + (Byv) dy.
+Since these expressions are linear in dxand dy, it follows (assuming that not all the
+partial derivatives vanish) that the infinitesimal vectors are carried to their images
+by a linear transformation. The general significance of this will be discussed later,
+but for the moment it means that the local effect of our mapping is completely
+described by a matrix Jcalled the Jacobian. Thus,
+[4.4] The local linear (Jacobian) transformation induced by a general mapping. An
+infinitesimal vector along a curve is carried to its image along the image curve by a linear
+transformation called the Jacobian, J. As the text explains, du= (Bxu) dx + (Byu) dy,
+and similarly for dv, leading to the matrix representation of Jas (4.2).
+218 Differentiation: The Amplitwist Concept
+dx
+dy Þ− Ñ
+du
+dv= J dx
+dy,
+where the Jacobian matrix is
+J=
+Bxu Byu
+Bxv Byv. (4.2)
+We are now in a position to return to the specific mapping z ÞÑ z2, or more
+precisely to the mapping of R2 that we extracted from it. If we evaluate (4.2) for the
+mapping (4.1), we find that
+J=
+2x−2y
+2y 2x.
+The geometric effect of this matrix is perhaps more clearly seen if we switch to
+polar coordinates. At the point z = reiθ—or rather (rcos θ, rsin θ), since for the
+moment we are still in R2—we have
+J= 2r
+cos θ− sin θ
+sin θ cos θ.
+The effect of the 2ris merely to expand all the vectors by this factor. This clearly
+does not affect the angle between any two of them. The remaining matrix is
+probably familiar to you as producing a rotation of θ, and hence it too does
+not alter the angle between vectors. Since both stages of the transformation pre-
+serve angles, we have in fact verified the previous claim: the net transformation is
+conformal.
+4.3.3 The Amplitwist Concept
+We have just seen that the local effect of zÞÑ z2 on infinitesimal vectors is to expand
+them and to rotate them. Transformations of this type (i.e., whose local effect is
+produced in these two steps) will play a dominating role from now on, and it will
+be very much to our advantage to have vivid new words specifically to describe
+them.
+If all the infinitesimal vectors (qpetc.) emanating from qmerely undergo an
+equal enlargement to produce their images at Q, then we shall say that the local
+effect of the mapping is to amplify the vectors, and that the magnification factor
+involved is the amplification of the mapping at the point q. If, on the other hand,
+they all undergo an equal rotation, then we shall say that the local effect of the
+mapping is to twist the vectors, and that the angle of rotation involved is the twist
+of the mapping at the point q. More generally, the kind of mapping that will con-
+cern us will locally both amplify and twist infinitesimal vectors—we say that such
+a transformation is locally an amplitwist. Thus “an amplitwist” is synonymous
+Local Description of Mappings in the Plane 219
+with “a (direct) similarity”, except that the former refers to the transformation of
+infinitesimal vectors, whereas “a similarity” has no such connotation.
+[We remind the reader of the discussion in both Prefaces: “infinitesimal” is
+being used here in a definite, technical sense—small and ultimately vanishing,
+the relationship to other infinitesimals being expressed via Newtonian “ultimate
+equalities”.]
+We can illustrate the new terminology with reference to the concrete case we
+have just analysed: The mapping zÞÑ z2 is locally an amplitwist with amplification
+2rand twist θ. See [4.5]. Quite generally, this figure makes it clear that if a mapping
+is locally an amplitwist then it is automatically conformal—the angle ϕbetween the
+infinitesimal complex numbers is preserved.
+Returning to [4.1] and [4.2], we now understand why infinitesimal squares were
+mapped to infinitesimal squares. Indeed, an infinitesimal region of arbitrary shape
+located at zwill be “amplitwisted” (amplified and twisted) to a similar shape at
+z2. Note that here we are extending our terminology still further: henceforth we
+will freely employ the verb “to amplitwist”, meaning to amplify and to twist an
+infinitesimal geometric object.
+All we really have at the moment is one simple mapping that turned out to be
+locally an amplitwist. In order to appreciate how truly fundamental this amplitwist
+concept is, we must return to C and begin from scratch to develop the idea of
+complex differentiation.
+[4.5] Amplitwist terminology. The local effect of zÞÑ z2 on infinitesimal complex num-
+bers emanating from z= reiθ is to amplitwist them. Specifically, here we must amplify
+them by 2r—this magnification factor is called the amplification—and we must twist
+them by θ—this rotation angle is called the twist. The net transformation is called the
+amplitwist: it is equivalent to multiplication by (amplification) ei(twist) = 2reiθ, in this
+example. If a complex mapping is locally an amplitwist, as this one is, then it is also con-
+formal, as illustrated. We reserve this terminology for infinitesimal complex numbers, i.e.,
+for small complex numbers in their moment of vanishing.
+220 Differentiation: The Amplitwist Concept
+4.4 The Complex Derivative as Amplitwist
+4.4.1 The Real Derivative Re-examined
+In the ordinary real calculus we have a potent means of visualizing the derivative
+f′ of a function ffrom R to R, namely, as the slope of the graph y= f(x). See [4.6a].
+Unfortunately, due to our lack of four-dimensional imagination, we can’t draw
+the graph of a complex function, and hence we cannot generalize this particular
+conception of the derivative in any obvious way.
+As a first step towards a successful generalization, we simply split the axes apart,
+so that [4.6a] becomes [4.6b]. Note that we have drawn both copies of R in a hori-
+zontal position, in anticipation of their being viewed as merely the real axes of two
+complex planes.
+Next, continuing in the spirit of the previous section, we observe that |f′(x)|
+describes how much the initial infinitesimal vector at xmust be expanded to obtain
+its image at f(x). More algebraically, f′(x) is that real number by which we must
+multiply the initial vector to obtain its image:
+f′(x)· Ñ = − Ñ. (4.3)
+If f′(x) > 0 (as in [4.6b]) then the image of positive dxis a positive df, but if
+f′(x) <0 then the infinitesimal image vector dfis negative and points to the left,
+as illustrated in [4.7]. In this case, dfcan be obtained by first expanding dxby
+|f′(x)|, then rotating it by π. If we think of f′(x) as a point on the real axis of C,
+then arg[f′(x)] = 0 when f′(x) > 0, and arg[f′(x)] = πwhen f′(x) < 0. Thus,
+[4.6] The real derivative re-examined. [a] The traditional picture of the derivative f′ as the
+slope of the tangent to the graph y= f(x). [b] Let us instead break apart the two copies of
+the real axis, as we are forced to break apart the two copies of C in the case of a complex
+function, zÞÑ f(z). Then an infinitesimal movement dxis mapped to df= f′dx: in other
+words, the local transformation is an amplification by f′
+.
+The Complex Derivative as Amplitwist 221
+[4.7] If we think of f′(x) as a point on the real axis of C, then arg[f′(x)] = 0 when
+f′(x) > 0, and arg[f′(x)] = π when f′(x) < 0. Thus, regardless of whether f′(x) is
+positive or negative, we see that the local effect of fon an infinitesimal vector dxat xis
+to expand it by |f′(x)| and to rotate it by arg[f′(x)].
+regardless of whether f′(x) is positive or negative, we see that the local effect of
+fon an infinitesimal vector dxat xis to expand it by |f′(x)| and to rotate it by
+arg[f′(x)].
+With all this fresh in our minds, we now attempt to generalize the notion of
+“derivative” to mappings of C.
+4.4.2 The Complex Derivative
+Consider the effect of a complex mapping f(z) on an infinitesimal complex number
+emanating from z. Its image (i.e., the connecting complex number between the two
+image points) will be an infinitesimal complex number emanating from f(z). The
+generalization of [4.6b] or [4.7] is now [4.8]. On the right, we have drawn this image
+complex number in black, and we have also drawn a copy [white] at f(z) of the
+original arrow at z. To transform the white arrow into the black image arrow now
+requires not only an expansion, but also a rotation. In figure [4.8] it looks as though
+we must expand the white arrow by 2, and rotate it by (3π/4). Contrast this with
+the case of a real function, where the required rotation angle could only be 0 or π;
+in the case of a complex function we need rotations through arbitrary angles.
+[4.8] The local effect of a general complex mapping. The effect of a complex function on
+an infinitesimal arrow is to rotate it and expand it, which is equivalent to multiplication
+by a complex number = (expansion factor)ei(rotation angle) = 2 ei(3π/4), in the illustrated
+example.
+222 Differentiation: The Amplitwist Concept
+Nevertheless, we can still write down an algebraic equation completely analo-
+gous to (4.3), because “expand and rotate” is precisely what multiplication by a complex
+number means. Thus the complex derivative f′(z) can now be introduced as that
+complex number by which we must multiply the infinitesimal number at zto obtain
+its image at f(z):
+f′(z)·
+Ñ
+= Õ. (4.4)
+In order to produce the correct effect, the length of f′(z) must be the magnification
+factor, and the argument of f′(z) must be the angle of rotation. For example, at the par-
+ticular point shown in [4.8] we would have f′(z) = 2 ei(3π/4). In fact, in the spirit
+of Chapter 1, we need not even distinguish between the local transformation and
+the complex number that represents it.
+To find f′(z) we have looked at the image of a specific arrow at z, but (unlike the
+case of R) there are now infinitely many possible directions for such arrows. What
+if we had looked at an arrow in a different direction from the illustrated one?
+We are immediately in trouble, because a typical mapping1 will do what you
+see in [4.9]. Clearly the magnification factor differs for the various arrows, and
+likewise each arrow needs to be rotated a different amount to obtain its image.
+While we could still use a complex number in (4.4) to describe the transformation
+of the arrows, it would have to be a different number for each arrow. There would
+therefore be no single complex number we could assign to this point as being the
+derivative of fat z. We have arrived at an apparently gloomy impasse: a typical
+mapping of C simply cannot be differentiated.
+[4.9] Infinitesimal complex numbers in different directions are generally rotated and
+expanded by different amounts. In general, a complex function will map an infinitesi-
+mal circle to an infinitesimal ellipse, as shown. But this means that infinitesimal radii in
+different directions each undergo different rotations and expansions. The mapping is not
+locally an amplitwist, and is therefore not “analytic”: f′(z) does not exist.
+1 Shortly we will justify certain details of [4.9], such as the fact that an infinitesimal circle is mapped
+to an infinitesimal ellipse.
+The Complex Derivative as Amplitwist 223
+4.4.3 Analytic Functions
+We get around the above obstacle in Zen-like fashion—by ignoring it! That is, from
+now on we concentrate almost exclusively on those very special mappings that
+can be differentiated. Such functions are called analytic (or holomorphic). From the
+previous discussion it follows that
+Analytic mappings are precisely those whose local effect is an amplitwist: all the
+infinitesimal complex numbers emanating from a single point are amplified and
+twisted the same amount.
+In contrast to [4.9], the effect of an analytic mapping can be seen in [4.10]. For such
+a mapping the derivative exists, and simply is the amplitwist, or, if you prefer, the
+complex number representing the amplitwist.
+At this point you might quite reasonably fear that however interesting such map-
+pings might be, they would be too exotic to include any familiar or useful functions.
+However, a ray of hope is held out by the humble-looking mapping zÞÑ z2, for we
+have already established that it is locally an amplitwist, as illustrated in [4.5], and
+so it now gains admittance into the select set of analytic functions. In fact, quite
+amazingly, we will discover in the next chapter that virtually every function we
+have met in this book is analytic! Of course we have already seen plenty of empir-
+ical evidence of this in our many pictures showing small “squares” being mapped
+to small “squares”.
+It should perhaps be stressed that all our recent pictures have been concerned
+with local properties, and hence with infinitesimal arrows and figures. For example,
+it’s clear from [4.10] that any analytic mapping will send infinitesimal circles
+to other infinitesimal circles; however, this does not mean that such mappings
+typically send circles to circles. Figure [4.11] (which contains [4.10] at its centre)
+illustrates the fact that if we start with an infinitesimal circle and then expand it,
+its image will generally distort out of all semblance of circularity. Of course, an
+important exception to this is provided by the Möbius transformations, for these
+[4.10] Analytic = locally an amplitwist, expanding and rotating all infinitesimal complex
+numbers equally. By definition, an analytic mapping is locally an amplitwist, and the
+derivative f′(z) simply is the amplitwist.
+224 Differentiation: The Amplitwist Concept
+[4.11] Analytic mappings only send infinitesimal circles to circles. While an analytic
+mapping must send infinitesimal circles to circles, it will generally deform an expanding
+circle into a shape that becomes less and less circular. The only analytic mappings that
+preserve circles of all sizes are the Möbius transformations.
+precisely do preserve circles of all sizes. In fact it can be shown that the Möbius
+transformations are the only2 ones with this property.
+4.4.4 A Brief Summary
+The principal kinds of mapping we wish to study in this book are the analytic
+(complex-differentiable) ones. Although these will turn out to include almost all
+the useful functions, they are nevertheless very special. Their effect on an infinites-
+imal disc centred at zis, after translation to f(z), simply to amplify and twist it.
+The amplification is the expansion factor, and the twist is the angle of rotation. The
+local effect of fis then completely encoded in the single complex number f′(z), the
+derivative of f, or (as we will often prefer to call it) the amplitwist of f:
+f′(z) = the derivative of fat z
+= the amplitwist of fat z
+= (amplification) ei(twist)
+= |f′(z)| eiarg [f′(z)]
+.
+To obtain the image at f(z) of an infinitesimal complex number at z, you just
+multiply it by f′(z).
+Two last points. We have introduced the word “amplitwist” (in addition to
+“derivative”) because it is suggestive, and because it will make later reasoning
+2 This was proved by Carathéodory (1937).
+Some Simple Examples 225
+much easier to explain. However, the student meeting this subject for the first time
+should be made aware of the fact that in all other books only the word deriva-
+tive is used. Also, note that the two words are synonymous only to the extent
+(cf. Chapter 1) that a complex number can be identified with the similarity trans-
+formation it produces when each point is multiplied by it. Thus, for example,
+“to differentiate” will not mean the same as “to amplitwist”: the former refers to
+the act of finding the derivative of a function, while the latter refers to the act of
+“amplifying and twisting” an infinitesimal geometric figure.
+4.5 Some Simple Examples
+In the following examples we have superimposed the image copy of C on the
+original one.
+z ÞÑ z+ c.
+This represents a translation of the points by c. As we see in [4.12a], the length
+of complex numbers emanating from zis preserved, and hence the amplification is
+unity. Equally clearly, since no rotation is induced, the twist is zero. Hence
+(z+ c)′
+= amplitwist of (z+ c) = 1 ei0
+= 1.
+Notice how this is in complete accord with the familiar rule of real calculus, namely,
+that d
+dx(x+ c) = 1.
+z ÞÑ Az.
+If A= aeiα, then this represents the combination of an origin-centred expansion
+by a, and a rotation by α. It is clear in [4.12b] that any arrow at z(in particular an
+infinitesimal one) will suffer precisely the same amplification and twist as do the
+points of the plane themselves. Hence
+(Az)′
+= amplitwist of (Az) = A.
+While the meaning is richer, this is once again formally identical to the familiar
+result d
+dx(Ax) = A.
+zÞÑ z2
+.
+Our earlier investigation revealed that at the point z = reiθ this mapping is
+locally an amplitwist with amplification 2rand twist θ, as illustrated in [4.5]. Hence,
+(z2)′
+= amplitwist of (z2) = (amplification) ei(twist) = 2reiθ
+= 2z.
+Once again, note that this result is formally identical to the formula (x2)′
+= 2x
+of ordinary calculus. In the next chapter we shall obtain a directly complex and
+geometrical demonstration of this fact.
+226 Differentiation: The Amplitwist Concept
+[4.12] The complex amplitwist formula agrees with the real derivative. [a] The transla-
+tion zÞÑ z+ chas amplification 1 and twist 0, so its amplitwist is 1, in accordance with
+the real formula, (x+ c)′
+= 1. [b] The mapping zÞÑ Az= aeiαzhas amplification aand
+twist α, so its amplitwist is aeiα = A, in accordance with the real formula, (Ax)′
+= A.
+[4.13] Conjugation is anticonformal and therefore not analytic. The mapping zÞÑ zis
+anticonformal, so it is not locally an amplitwist, and the derivative does not exist.
+z ÞÑ z.
+Since this mapping is anticonformal, it clearly cannot be analytic, for we have
+already observed that if a mapping is locally an amplitwist, then it is automati-
+cally conformal. Figure [4.13a] pinpoints the trouble. From the picture we see that
+the image at zof any complex number emanating from zhas the same length as
+the original, and hence the amplification is unity. The problem lies in the fact that
+an arrow at angle ϕmust be rotated by−2ϕto obtain its image arrow at angle−ϕ.
+Thus different arrows must be rotated different amounts (which is not a twist) and
+hence there is no amplitwist.
+Conformal = Analytic 227
+4.6 Conformal = Analytic
+4.6.1 Introduction
+In [4.5] we saw clearly that any mapping that is locally an amplitwist is also auto-
+matically conformal. In terms of complex differentiation, we can now rephrase
+this by saying that all analytic functions are conformal. The question then nat-
+urally arises as to whether the converse might also be true. Is every confor-
+mal mapping analytic, or, in other words, is the local effect of every conformal
+mapping nothing more complicated than an amplitwist? If this were the case
+then the two concepts would be equivalent and we would have a new way
+of recognizing, and perhaps reasoning about, analytic functions. A tempting
+prospect!
+To dismiss this as a possibility would only require the discovery of a single
+function that is conformal and yet whose local effect is not an amplitwist. The
+example of complex conjugation, illustrated in [4.13b], shows how important it is
+that we take into account the fact that the mapping preserves not only the mag-
+nitude of angles, but also their sense. For zÞÑ zis not analytic, but it is also not a
+counterexample to the conjecture, because it is anticonformal.
+We have seen that although conjugation does possess an amplification, it fails to
+be analytic because it doesn’t have a twist. Let us now consider instead a function
+that does possess a twist, but which again fails to be analytic, this time by virtue of
+not having an amplification. The effect of such a mapping at a particular point is
+illustrated in [4.14]. The three curves on the LHS intersect at equal angles of (π/3),
+and on the RHS their images do too. But the picture clearly shows that we are not
+dealing with an amplitwist. Imagine that the infinitesimal tangent complex num-
+bers to the curves are first twisted, but then rather than being amplified, as they
+would be by an analytic function, they are expanded by different factors. Despite
+[4.14] A twist without an amplitwist. At a single point it is possible for a mapping to
+possess a twist, and therefore to be conformal at that point, and yet not possess an
+amplification, and therefore not be an amplitwist.
+228 Differentiation: The Amplitwist Concept
+this, however, the initial twist ensures that the angle between two curves is pre-
+served both in magnitude and sense: the mapping is genuinely conformal at this
+point.
+4.6.2 Conformality Throughout a Region
+If we only insist on conformality at isolated points then such counterexamples do
+indeed exist (we’ve drawn one!), but if we require the mapping to be conformal
+throughout a region then this nonanalytic behaviour cannot occur.
+Imagine that we have a region throughout which the mapping is (i) conformal,
+and (ii) sufficiently non-pathological that an infinitesimal line-segment is mapped
+to another infinitesimal line-segment. In fact, re-examination of [4.3] reveals that
+(ii) must be presupposed in order for (i) even to make sense. For if the infinitesimal
+straight piece of curve from qto pdid not map to another of the same kind at
+Q, then we could not even speak of an angle of intersection at Q, let alone of its
+possible equality with ϕ.
+Now look at [4.15]. In our conformal region we have drawn a large (i.e., not
+infinitesimal) triangle abc, along with its image ABC. Notice that while the straight
+edges of abcare completely distorted to produce the curvilinear edges of ABC,
+the angles of this “triangular” image are identical with those of the original. Now
+imagine shrinking abcdown towards an arbitrary point in the region. As we do so,
+the sides of its shrinking image will increasingly resemble straight lines [by virtue
+[4.15] A mapping that is conformal throughout a region must locally be an amplitwist. If
+the mapping is conformal through the region in which the triangle abcshrinks to a point,
+then its curvilinear triangular image ABC must ultimately become a similar infinitesi-
+mal triangle, which can therefore be obtained by amplitwisting the original infinitesimal
+triangle.
+Conformal = Analytic 229
+of (ii)], and all the while the angles will remain the same as the original’s. Thus,
+any infinitesimal triangle in this region is mapped to another infinitesimal similar
+triangle. Since the image triangle merely has a different size and alignment on the
+page, it is indeed obtained by amplitwisting the original.
+We have thus established the sought-after equivalence of conformal and analytic
+mappings:
+A mapping is locally an amplitwist at a point pif it is conformal throughout
+an infinitesimal neighbourhood of p.
+For this reason, the conventional definition of fbeing “analytic” at pis that f′ exist
+at pand at all points in an infinitesimal neighbourhood of p.
+From this result we can immediately deduce, for example, that complex inver-
+sion z ÞÑ (1/z) is analytic, for we have already demonstrated geometrically that
+it is conformal. By the same token, it follows more generally that all Möbius
+transformations are analytic.
+For no extra charge, we can obtain a further equivalence simply by concentrating
+on distances rather than angles. What we have just seen is that a mapping can-
+not possess a twist throughout a region without also having an amplification. In
+order to investigate the converse, suppose that a mapping is only known to possess
+an amplification throughout a region. Re-examine [4.15] from this point of view.
+Unlike the previous case, there is no longer any a priori reason for the image ABC
+to betray any features common to the original. However, as we carry out the same
+shrinking process as before, the local existence of amplifications begins to reveal
+itself.
+As the triangle becomes very small, we may consider two of its sides, for
+example ab and ac, to be infinitesimal arrows emanating from a vertex. While
+we may not yet know anything of angles, we do know that these arrows both
+undergo the same amplification to produce their images ABand AC. But if we
+now apply this reasoning at one of the other vertices, we immediately find that
+in order to be consistent, all three sides must undergo the same3 amplification.
+Once again we have been able to deduce that the image triangle is similar to the
+original.
+However, this time all we know is that the magnitude of the angles in the infinites-
+imal image triangle are the same as those in the original. If the sense of the angles
+also agree, then the image is obtained by amplitwisting the original, just as before.
+But if the angles are reversed, then we must flip the original triangle over as well
+3 We only mean “same” in the sense that the variations in amplification are of the same infinitesimal
+order as the dimensions of abc. If the amplifications were precisely the same, then extending our
+argument to a whole network of closely spaced vertices, we would conclude that the amplification
+was constant throughout the region.
+230 Differentiation: The Amplitwist Concept
+as amplitwisting it. This “flip” may be accomplished by reflecting in any line; in
+particular, we may employ reflection in the real axis, z ÞÑ z. Thus if f(z) is a
+mapping that is known to possess an amplification throughout an infinitesimal
+neighbourhood of a point p, then either f(z) is analytic at p, or else f(z) is analytic
+at p.
+It is interesting to note that the use of triangles in the above arguments was not
+incidental, but instead crucial. Rectangles, for example, would simply not have
+sufficed. Take the first argument. Certainly conformality still guarantees us that
+an infinitesimal rectangle maps to another infinitesimal rectangle. However, this
+image rectangle could in principle have very different proportions from the orig-
+inal, and hence not be obtainable via an amplitwist. Try the second argument for
+yourself and see how it too fails.
+For a computational approach to the above results, see Ahlfors (1979, p. 73).
+4.6.3 Conformality and the Riemann Sphere
+In the previous chapter we addressed a twin question: “How are we to visualize
+the effect of a mapping on infinitely remote parts of the complex plane, or the effect
+of a mapping that hurls finite points into the infinite distance?” Our answer was
+to replace both complex planes (original and image) with Riemann spheres. We
+could then visualize the mapping as taking place between the two spheres, rather
+than between the two planes. To a large extent the success of this merely depended
+upon the fact that we had gathered up the infinite reaches of the plane to a single
+point on the sphere. It did not depend on the precise manner in which we chose
+to do this. Why then the insistence on accomplishing this with stereographic pro-
+jection, rather than in some other way? Several reasons emerged in the previous
+chapter, but the present discussion shows that another compelling reason is that
+stereographic projection is conformal.
+Only now can we fully appreciate this point, for we have seen that analytic
+functions are the conformal mappings of the plane. As illustrated in [4.16], the con-
+formality of stereographic projection now enables us to translate this directly into
+a statement about Riemann spheres:
+A mapping between spheres represents an analytic function if and only if
+it is conformal.
+We have drawn the spheres separate from the planes to reinforce the idea that
+we are entitled to let the plane fade from our minds, and to adopt instead the
+sphere as a logically independent base of operations. Indeed, at this stage we could
+consider complex analysis to be nothing more than the study of conformal maps
+between spheres. But in works on Riemann surfaces it is shown that in order to
+embrace the global aspects of many-one functions and their inverses, one must
+extend this conception to conformal mappings between more general surfaces,
+such as doughnuts.
+Critical Points 231
+[4.16] Analytic mappings of induce conformal mappings of the Riemann sphere, for
+the simple reason that stereographic projection is conformal.
+4.7 Critical Points
+4.7.1 Degrees of Crushing
+We return to the mapping z2 and note that at z= 0, (z2)′
+= 2z= 0. A place such as
+this, where the derivative vanishes, is called a critical point. Recall that in the previ-
+ous chapter we defined the term “critical point” differently, as a point at which the
+conformality of an otherwise conformal mapping breaks down. These two defini-
+tions are not at odds with one another. If the derivative f′(z) of an analytic mapping
+fis not zero at z= p, then we know that fis conformal at p, so conformality can
+only break down at points where f′(z) = 0. Although it is not obvious, later we
+will be able to prove the converse fact that if f′(p) = 0 then fcannot be conformal
+at p. Thus the two definitions are equivalent.
+In terms of the amplitwist concept a critical point could equally well be defined
+as a point of zero amplification. This suggests that the effect of an analytic mapping
+on an infinitesimal disc centred at a critical point is to “crush it down to a single
+image point”. The statement in quotes is not to be taken literally, rather it is to be
+understood in the following sense.
+Imagine that the disc (radius ϵ) is so tiny that it must be placed under a micro-
+scope in order to be seen. Suppose that we have available a whole family of lenses
+of increasing power with which to view it: L0, L1, L2, L3, . . .. For example, L0 has
+magnification 1/ϵ0 = 1, so that it’s really no better than using the naked eye. On
+the other hand L1 has magnification 1/ϵ1, and it is thus so powerful that we can
+232 Differentiation: The Amplitwist Concept
+actually see the disc with it. The lens L2 is even more remarkable in that it magni-
+fies by 1/ϵ2, so that even a small part of our microscopic disc now completely fills
+the viewing screen4
+.
+Let’s switch back to L1 so that we can see the whole disc again, and watch what
+happens to it when we apply the transformation zÞÑ z2. It disappears! At best we
+might see a single dot sitting at the image of the critical point. It is in this sense that
+the mapping is crushing. However, if we now attach L2 instead, we can see our
+mistake: the dot isn’t a dot, in fact it’s another disc of radius ϵ2
+.
+For this particular mapping, L2 was sufficient to see that the disc had not been
+completely crushed. However, at a critical point of another mapping, even this
+might not provide sufficient magnification, and we would require a stronger lens,
+say Lm, to reveal that the image of the disc isn’t just a point. The integer mmeasures
+the degree of crushing at the critical point.
+4.7.2 Breakdown of Conformality
+In addition to being locally crushing, we have stated (but not yet proved) that the
+conformality of an analytic function breaks down at its critical points. We can see
+this in our example. When the z2 mapping acts on a pair of rays through the crit-
+ical point z = 0, it fails to preserve the angle between them; in fact it doubles it.
+Thus, just at the critical point, the conformality of z2 breaks down. This is a gen-
+eral property. In fact we will show later that the behaviour of a mapping very near
+to a critical point is essentially given by zm
+, m⩾2. Rather than being conserved,
+angles at the critical point z = 0 are consequently multiplied by m. We quantify
+the degree5 of this strange behaviour by saying that z= 0 is a critical point of order
+(m− 1). Notice that this mis the same one as in the previous paragraph: in order
+to see the image we have to use the Lmlens.
+Despite the fact that conformality breaks down at critical points, we shall con-
+tinue to make such bald statements as, “z2 is conformal”. The tacit assumption
+is that critical points are being excluded. Indeed we were making this assump-
+tion throughout the previous section, for we only concerned ourselves there with
+typical points. Later we will see that critical points are, in a mathematically pre-
+cise sense, “few and far between”, and this is our excuse for the scant attention
+we are presently paying them. Nevertheless, we may safely skirt around this issue
+4 In terms of this analogy we could say that most of the diagrams in this chapter, indeed in the rest of
+the book, show views of the image complex plane taken through L1. For example [4.10] depicts a tiny
+circle being amplitwisted to produce another circle. However, if we viewed part of this image ‘circle’
+with L2 instead of L1, then deviations from circularity would become visible. Of course the smaller
+we make the preimage circle, the smaller these deviations will be.
+5 The reason we define it to be (m− 1), rather than m, is that this properly reflects the multiplicity
+of the root of the derivative.
+Critical Points 233
+only so long as we focus on the effect of the function on separate chunks of its
+domain. When one studies Riemann surfaces, one tries to fit all this partial infor-
+mation into a global picture of the mapping, and in achieving this the critical points
+will play a crucial role. They do so by virtue of yet another aspect of the peculiar
+behaviour of a mapping in the vicinity of such points, and it is to this feature that we
+now turn.
+In the previous chapter we discussed the possibility of critical points being
+located at infinity. In particular, we considered z ÞÑ zm. On the Riemann sphere
+we drew two straight lines passing through the origin, and we thereby saw that
+angles at both z= 0 and z= ∞ were multiplied by m. We therefore conclude that
+∞ is a critical point of zm of order (m− 1), just like the origin. Actually, except
+for m = 2, we don’t yet know if zm is conformal anywhere! However, in the next
+chapter we will see that it is conformal everywhere except at the two critical points
+we have just discussed.
+4.7.3 Branch Points
+First consider the case of a real function R(x) from R to R. In solving problems
+on maxima and minima, we learn from an early age the importance of finding the
+places where R′(x) = 0. Figure [4.17] shows an ordinary graph of y= R(x), empha-
+sizing a different aspect of the behaviour of Rnear to a “critical point” cwhere
+R′(c) = 0. Above a typical point t, for which R′(t) ̸= 0, the graph is either going up
+or going down, so the function is locally one-to-one. However, near cit is clearly
+two-to-one.
+An analogous significance holds for complex mappings. Typically f′(z) ̸= 0, and
+so an infinitesimal neighbourhood of zis amplitwisted to an infinitesimal image
+neighbourhood of w= f(z), and the two neighbourhoods are clearly in one-to-one
+correspondence. However, if f′(z0) = 0 then (according to our earlier claim) near
+to z0 the function behaves like zm, with m⩾2. Thus, if a point is in a close orbit
+around z0, its image will orbit w0 at m-times the angular speed, and corresponding
+to each point near w0 there will be mpreimages near z0. Thus w0 is a branch point
+of order (m− 1). We conclude that a critical point of a given order maps to a branch
+point of the same order.
+We began this idea by using an analogy with real functions, but we should also
+note an important difference. A real function R(x) is necessarily one-to-one when
+R′(x) ̸= 0, but (unlike the complex case) it need not be many-to-one when R′(x) = 0.
+The graph of x3, for example, is flat at the origin and yet it is still one-to-one in an
+infinitesimal neighbourhood of that point. In contrast to this, the complex mapping
+zÞÑ z3 is three-to-one near the origin, due to the existence of complex cube roots.
+234 Differentiation: The Amplitwist Concept
+[4.17] Breakdown of one-to-oneness near critical points. When R′(x) ̸= 0 (as at x= t)
+the graph is either going up or down, so the function is one-to-one in the immediate
+vicinity of the point. But near a “critical point” x= c, defined by R′(c) = 0, we see that
+Rneed not be one-to-one. The same turns out to be true for complex analytic mappings,
+only more so: if f′(c) = 0, then fis necessarily not one-to-one in the immediate vicinity
+of z= c.
+4.8 The Cauchy–Riemann Equations
+4.8.1 Introduction
+To end this chapter we will try to gain a better perspective on where the analytic
+functions lie within the hierarchy of mappings of the plane. A benefit of this will be
+the discovery of another way (the third!) of characterizing analytic functions, this
+time in terms of their real and imaginary parts.
+The first thing to do is realize that the “general” mappings (x, y)ÞÑ (u, v) that
+we considered earlier were not really as general as they could have been. Picture
+part of the plane as being a rolled out piece of pastry on a table. A general mapping
+corresponds to “doing something” to the pastry, thereby moving its points to new
+locations (the images) on the table. For example, we might cut the pastry in half
+and move the two pieces away from each other. This is much more general than
+anything we contemplated earlier, for it does not even possess the rudimentary
+quality of continuity. That is, if two points are on either side of the cut, then no
+matter how close we move them together, their images will remain far apart.
+Even if we do insist on continuity, the resulting mappings are still more general
+than those we have considered. For example, imagine pressing down the rolling-
+pin somewhere in the middle of the pastry, and, in a single roll, stretching the far
+side to twice its former size. This certainly is continuous, for bringing two points
+together always brings their images together. The problem now lies in the fact that
+if two infinitesimal, diametrically opposed arrows emanate from a point beneath
+The Cauchy–Riemann Equations 235
+the starting position of the pin, then they each undergo a quite different transfor-
+mation. Thus, in an obvious sense (not a subtle complex-differentiation sense) the
+mapping isn’t differentiable at this point. Nevertheless, provided we stay away
+from this line, the mapping is differentiable in the real sense, and hence subject to
+our earlier analysis using the Jacobian matrix.
+Another interesting kind of mapping arises from the commonplace operation of
+folding the pastry. Suppose we fold it like a letter being placed in an envelope [two
+creases]. Three different points will end up above a single point of the table, and
+the mapping is thus three-to-one. However, at the creases themselves the mapping
+is only one-to-one, and furthermore, differentiability also breaks down there. Nev-
+ertheless, provided that we only look at the fold-free portions of the pastry, such
+many-one functions are still subject to our previous analysis.
+Suppose we play with the pastry in an ordinary way, rolling it (not necessarily
+evenly) now in this direction, now in another, then turning it, folding it, rolling
+it again, and so forth; then, provided we suitably restrict the domain, we can
+still apply our old analysis. While such a mapping is indeed very general, we
+hope that this discussion has revealed that (being continuous and differentiable
+in the real sense) it is, in fact, already quite high up the evolutionary ladder. It
+will therefore not come as such a surprise to learn that the local geometric effect
+of such a mapping is remarkably simple, though naturally not as simple as an
+amplitwist.
+4.8.2 The Geometry of Linear Transformations
+We pick up our earlier investigation where we left it. The local effect of the mapping
+is to perform the linear transformation encoded in the Jacobian matrix (4.2). If we
+can first understand the effect of a uniform linear transformation—corresponding
+to a constant matrix—then we shall be finished. For we need only then remember
+that our analysis is only applicable locally, the actual linear transformation varying
+as it does from one place to the next.
+Consider the effect of a uniform linear transformation on a circle C. Since the
+Cartesian equation of Cis quadratic, the linear change of coordinates induced by
+the transformation will lead to another quadratic equation for the image curve.
+The image curve Eis thus a conic section, and since the finite points of Care not
+sent to infinity, this conic must be an ellipse. See [4.18], and compare this also with
+[4.9], where the local consequence of this result was illustrated for a non-uniform
+transformation acting on an infinitesimal circle.
+We have just used an algebraic statement of linearity. The fundamental geometric
+fact is that it makes no difference if we add two vectors and then map the result,
+or if we map the vectors first and then add them. Convince yourself of these two
+simple consequences:
+236 Differentiation: The Amplitwist Concept
+[4.18] Singular Value Decomposition. A linear transformation maps the circle Cto the
+ellipse E. Let dbe the diameter of Cthat is mapped to the major axis D. Consider the
+chords of C[dashed] that are perpendicular to d. Since these are all bisected by d, their
+images must be a family of parallel chords of Esuch that Dis their common bisector.
+They must therefore be the family perpendicular to D. We thereby deduce the Singular
+Value Decomposition: A linear transformation is a stretch in the direction of d, another
+stretch perpendicular to it, and finally a twist.
+• Parallel lines map to parallel lines.
+• The midpoint of a line-segment maps to the midpoint of the image line-segment.
+We now apply these facts to E.
+Since all the diameters of Care bisected by the centre of C, it follows that the
+image chords of Emust all pass through a common point of bisection. Thus the
+centre of Cis mapped to the centre of E. Drawn in the same heavy line as its image
+is the particular diameter dof the circle that is mapped to the major axis Dof the
+ellipse. Now consider the chords of C[dashed] that are perpendicular to d. Since
+these are all bisected by d, their images must be a family of parallel chords of Esuch
+that Dis their common bisector. They must therefore be the family perpendicular
+to D. All this is summarized in [4.18].
+Thus we have obtained the following result:
+Local Singular Value Decomposition. The local linear transforma-
+tion induced by a (non-linear) complex mapping is a stretch in the
+(4.5)
+direction of d, another stretch perpendicular to it, and finally a twist.
+This result also makes sense at the level of counting degrees of freedom. Just as
+the matrix has four independent entries, so the specification of our transformation
+also requires four bits of information: the direction of d, the stretch factor in this
+direction, the perpendicular stretch factor, and the twist.
+The Cauchy–Riemann Equations 237
+[REMARKS: This Singular Value Decomposition (SVD for short) is of enormous
+importance in Linear Algebra and its real-world applications. It was discovered
+by Eugenio Beltrami,6 whom we shall meet again in Chapter 6, because he also
+made pivotal discoveries in Hyperbolic Geometry. In the context of the standard
+SVD theorem, the two orthogonal expansion factors are called the singular values
+of the transformation. In VDGF7 we elaborate on these ideas, and use them to pro-
+vide a simple geometrical interpretation of the transpose of a matrix, which we have not
+found in any standard Linear Algebra textbook. This in turn can be used to provide
+geometrical explanations of other standard results in Linear Algebra.]
+The ultimate specialization to analytic functions now simply requires that the
+two stretch factors be put equal. This apparently reduces the number of degrees
+of freedom from four to three. However, since we are now producing an equal
+expansion in all directions, the direction chosen for dbecomes irrelevant, and we
+are left with only two genuine degrees of freedom: the amplification and the twist.
+Note that we now have the following:
+An orientation preserving mapping is conformal if and only if it sends
+infinitesimal circles to infinitesimal circles.
+If a mapping preserves circles in general, then, in particular, it must send infinites-
+imal circles to infinitesimal circles, and hence it must be conformal8. Bypassing
+the detailed investigation of the previous chapter, we now see that the confor-
+mality/analyticity of Möbius transformations follows from the mere fact that they
+preserve circles.
+4.8.3 The Cauchy–Riemann Equations
+We obtain another characterization of analytic functions if we now ask how we may
+recognize a Jacobian matrix for which both expansion factors are equal. This is most
+easily answered by considering what kind of matrix corresponds to multiplication
+by a complex number, for we already know that this produces the desired type of
+linear transformation. Multiplying z= (x+ iy) by (a+ ib), we get
+(x+ iy)ÞÑ (a+ ib) (x+ iy) = (ax− by) + i(bx+ ay).
+This corresponds to the multiplication of a vector in R2 by the matrix
+a−b
+b a. (4.6)
+6 See Stewart (1993).
+7 See Needham (2021, §15.4).
+8 For a different proof of this fact, see Sommerville (1958, p. 237).
+238 Differentiation: The Amplitwist Concept
+Compare this with the Jacobian matrix (4.2),
+J=
+Bxu Byu
+Bxv Byv.
+In order for the effect of Jto reduce to an amplitwist, it must have the same form
+as (4.6), and thus
+Bxu = +Byv,
+(4.7)
+Bxv = −Byu.
+These are the celebrated Cauchy–Riemann equations. They provide us with a
+third way of recognizing an analytic function. However, as with the underlying
+amplitwist concept, these equations must be satisfied throughout an infinitesimal
+neighbourhood of a point in order that the mapping be analytic there [see Ex. 12].
+Since (a+ ib) is playing the role of the amplitwist, comparison of (4.6) and (4.2)
+now yields two formulae for the derivative:
+f′
+= Bxu+ iBxv= Bxf, (4.8)
+and
+f′
+= Byv− iByu= −iByf. (4.9)
+By way of example, consider z ÞÑ z3. Multiplying this out we obtain a rather
+haphazard looking mess:
+u+ iv= (x3
+− 3xy2) + i(3x2y− y3).
+However, differentiating the real and imaginary parts, we obtain
+Bxu = 3x2
+− 3y2 = +Byv,
+Bxv = 6xy= −Byu,
+and so the Cauchy–Riemann equations are satisfied. Thus, far from being haphaz-
+ard, the special forms of uand vhave ensured that the mapping is analytic. Using
+(4.8) we can calculate the amplitwist:
+(z3)′
+= 3(x2
+− y2) + i6xy= 3z2
+,
+just as in ordinary calculus. Check that (4.9) gives the same answer.
+In the next chapter we will sever our umbilical cord to R2 and discover how the
+above results can be better understood by directly appealing to the geometry of the
+complex plane.
+Exercises 239
+4.9 Exercises
+1 Use the Cauchy–Riemann equations to verify that zÞÑ zis not analytic.
+2 The mapping z ÞÑ z3 acts on an infinitesimal shape and the image is exam-
+ined. It is found that the shape has been rotated by π, and its linear dimensions
+expanded by 12. Where was the shape originally located? [There are two
+possibilities.]
+3 Consider zÞÑ Ω(z) = z2/z. By writing zin polar form, find out the geometric
+effect of Ω. Using two colours, draw two very small arrows of equal length
+emanating from a typical point z: one parallel to z; the other perpendicular to
+z. Draw their images emanating from Ω(z). Deduce that Ωfails to produce an
+amplitwist. [Your picture should show this in two ways.]
+4 The picture shows the shaded interior of a curve being mapped by an analytic
+function to the exterior of the image curve. If ztravels round the curve counter-
+clockwise, then which way does its image wtravel round the image curve?
+[Hint: Draw some infinitesimal arrows emanating from z, including one in the
+direction of motion.]
+5 Consider f(x+ iy) = (x2 + y2) + i(y/x). Find and sketch the curves that are
+mapped by finto (a) horizontal lines, and (b) vertical lines. Notice from your
+answers that fappears to be conformal. Show that it is not in two ways: (i) by
+explicitly finding some curves whose angle of intersection isn’t preserved; and
+(ii) by using the Cauchy–Riemann equations.
+6 Continuing from the previous exercise, show that no choice of v can make
+f(x+ iy) = (x2 + y2) + ivanalytic.
+7 (i) (ii) If g(z) = 3 + 2ithen explain geometrically why g′(z) ≡ 0.
+Show that if the amplification of an analytic function is identically zero (i.e.,
+f′(z) ≡ 0) on some connected region, then the function is constant there.
+240 Differentiation: The Amplitwist Concept
+(iii) Give a simple counterexample to show that this conclusion does not follow
+if the region is instead made up of disconnected components.
+8 Use pictures to explain why if f(z) is analytic on some connected region, each of
+the following conditions forces it to reduce to a constant.
+(i) Ref(z) = 0
+(ii) |f(z)|= const.
+(iii) Not only is f(z) analytic, but f(z) is too.
+9 Use the Cauchy–Riemann equations to give rigorous computational proofs of
+the results of the previous two exercises.
+10 Instead of writing a mapping in terms of its real and imaginary parts (i.e. f=
+u+ iv), it is sometimes more convenient to write it in terms of length and angle:
+f(z) = ReiΨ
+,
+where Rand Ψare functions of z. Show that the equations that characterize an
+analytic fare now
+BxR= RByΨ and ByR= −RBxΨ.
+11 Let’s agree to say that “f= u+ ivsatisfies the Cauchy–Riemann equations”
+if u and v do. Show that if f(z) and g(z) both satisfy the Cauchy–Riemann
+equations, then their sum and their product do also.
+12 For nonzero z, let f(z) = f(x+ iy) = xy/z.
+(i) Show that f(z) approaches 0 as z approaches any point on the real or
+imaginary axis, including the origin.
+(ii) Having established that f= 0 on both axes, deduce that the Cauchy–
+Riemann equations are satisfied at the origin.
+(iii) Despite this, show that fis not even differentiable at 0, let alone analytic
+there! To do so, find the image of an infinitesimal arrow emanating from
+0 and pointing in the direction eiϕ. Deduce that while fdoes have a twist
+at 0, it fails to have an amplification there

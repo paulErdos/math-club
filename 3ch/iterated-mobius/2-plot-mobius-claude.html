@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Möbius Sandbox</title>
+    <style>
+        body { background: #000; color: #ccc; font-family: monospace; display: flex; height: 100vh; margin: 0; overflow: hidden; }
+        #sidebar { width: 300px; background: #111; padding: 20px; border-right: 1px solid #333; overflow-y: auto; }
+        #main { flex: 1; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .control { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; margin-bottom: 5px; color: #888; }
+        input[type="range"] { width: 100%; }
+        select, button { width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; cursor: pointer; margin-bottom: 10px; }
+        select:hover, button:hover { background: #333; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h3>Möbius Controls</h3>
+    <select id="preset">
+        <option value="custom">Custom</option>
+        <option value="hyperbolic">Hyperbolic</option>
+        <option value="elliptic">Elliptic</option>
+        <option value="loxodromic">Loxodromic</option>
+    </select>
+    <button id="reset">Reset Canvas</button>
+    <hr style="border:0; border-top:1px solid #333; margin: 20px 0;">
+    
+    <div class="grid">
+        <div class="control"><label>Re(a)</label><input type="range" id="a_r" min="-3" max="3" step="0.05" value="1.11"></div>
+        <div class="control"><label>Im(a)</label><input type="range" id="a_i" min="-3" max="3" step="0.05" value="0.22"></div>
+        <div class="control"><label>Re(b)</label><input type="range" id="b_r" min="-3" max="3" step="0.05" value="-0.1"></div>
+        <div class="control"><label>Im(b)</label><input type="range" id="b_i" min="-3" max="3" step="0.05" value="0"></div>
+        <div class="control"><label>Re(c)</label><input type="range" id="c_r" min="-3" max="3" step="0.05" value="0"></div>
+        <div class="control"><label>Im(c)</label><input type="range" id="c_i" min="-3" max="3" step="0.05" value="0.15"></div>
+        <div class="control"><label>Re(d)</label><input type="range" id="d_r" min="-3" max="3" step="0.05" value="0.95"></div>
+        <div class="control"><label>Im(d)</label><input type="range" id="d_i" min="-3" max="3" step="0.05" value="-0.1"></div>
+    </div>
+</div>
+
+<div id="main">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script>
+class C {
+    constructor(r, i = 0) { this.r = r; this.i = i; }
+    add(o) { return new C(this.r + o.r, this.i + o.i); }
+    sub(o) { return new C(this.r - o.r, this.i - o.i); }
+    mul(o) { return new C(this.r * o.r - this.i * o.i, this.r * o.i + this.i * o.r); }
+    div(o) { let d = o.r * o.r + o.i * o.i; return new C((this.r * o.r + this.i * o.i) / d, (this.i * o.r - this.r * o.i) / d); }
+    abs() { return Math.sqrt(this.r * this.r + this.i * this.i); }
+    scale(s) { return new C(this.r * s, this.i * s); }
+}
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const inputs = ['a_r', 'a_i', 'b_r', 'b_i', 'c_r', 'c_i', 'd_r', 'd_i'];
+let width, height;
+
+function resize() {
+    width = canvas.width = canvas.clientWidth;
+    height = canvas.height = canvas.clientHeight;
+    draw();
+}
+
+function getM() {
+    return [
+        [new C(parseFloat(document.getElementById('a_r').value), parseFloat(document.getElementById('a_i').value)), 
+         new C(parseFloat(document.getElementById('b_r').value), parseFloat(document.getElementById('b_i').value))],
+        [new C(parseFloat(document.getElementById('c_r').value), parseFloat(document.getElementById('c_i').value)), 
+         new C(parseFloat(document.getElementById('d_r').value), parseFloat(document.getElementById('d_i').value))]
+    ];
+}
+
+function transform(M, center, radius) {
+    let a = M[0][0], b = M[0][1], c = M[1][0], d = M[1][1];
+    let pts = [0, 2.1, 4.2].map(ang => center.add(new C(Math.cos(ang) * radius, Math.sin(ang) * radius)));
+    let mapped = pts.map(p => a.mul(p).add(b).div(c.mul(p).add(d)));
+    
+    let D = 2.0 * (mapped[0].r * (mapped[1].i - mapped[2].i) + mapped[1].r * (mapped[2].i - mapped[0].i) + mapped[2].r * (mapped[0].i - mapped[1].i));
+    if (Math.abs(D) < 1e-10) return null;
+    let ux = ((mapped[0].r**2 + mapped[0].i**2) * (mapped[1].i - mapped[2].i) + (mapped[1].r**2 + mapped[1].i**2) * (mapped[2].i - mapped[0].i) + (mapped[2].r**2 + mapped[2].i**2) * (mapped[0].i - mapped[1].i)) / D;
+    let uy = ((mapped[0].r**2 + mapped[0].i**2) * (mapped[2].r - mapped[1].r) + (mapped[1].r**2 + mapped[1].i**2) * (mapped[0].r - mapped[2].r) + (mapped[2].r**2 + mapped[2].i**2) * (mapped[1].r - mapped[0].r)) / D;
+    let cen = new C(ux, uy);
+    return { cen, rad: mapped[0].sub(cen).abs() };
+}
+
+function draw() {
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,width,height);
+    let M = getM();
+    let Minv = [[M[1][1], M[0][1].scale(-1)], [M[1][0].scale(-1), M[0][0]]]; // Simplified adjugate
+    let seeds = [{c: new C(0, 0), r: 0.5}];
+    let scale = 100;
+    
+    ctx.lineWidth = 0.5;
+    seeds.forEach(s => {
+        let f = s, b = s;
+        ctx.strokeStyle = '#fff';
+        ctx.beginPath(); ctx.arc(width/2 + s.c.r*scale, height/2 - s.c.i*scale, s.r*scale, 0, 7); ctx.stroke();
+        
+        ctx.strokeStyle = '#ffdf00';
+        for(let i=0; i<20; i++){
+            f = transform(M, f.c, f.r);
+            if(!f || f.rad > 1000) break;
+            ctx.beginPath(); ctx.arc(width/2 + f.cen.r*scale, height/2 - f.cen.i*scale, f.rad*scale, 0, 7); ctx.stroke();
+        }
+        
+        ctx.strokeStyle = '#1e90ff';
+        for(let i=0; i<20; i++){
+            b = transform(Minv, b.c, b.r);
+            if(!b || b.rad > 1000) break;
+            ctx.beginPath(); ctx.arc(width/2 + b.cen.r*scale, height/2 - b.cen.i*scale, b.rad*scale, 0, 7); ctx.stroke();
+        }
+    });
+}
+
+const presets = {
+    hyperbolic: {a_r: 1.5, a_i: 0, b_r: 0, b_i: 0, c_r: 0, c_i: 0, d_r: 1, d_i: 0},
+    elliptic: {a_r: 0.96, a_i: 0.25, b_r: 0, b_i: 0, c_r: 0, c_i: 0, d_r: 1, d_i: 0},
+    loxodromic: {a_r: 1.11, a_i: 0.22, b_r: -0.1, b_i: 0, c_r: 0, c_i: 0.15, d_r: 0.95, d_i: -0.1}
+};
+
+document.getElementById('preset').onchange = (e) => {
+    let p = presets[e.target.value];
+    if(p) {
+        Object.keys(p).forEach(k => document.getElementById(k).value = p[k]);
+        draw();
+    }
+};
+
+inputs.forEach(id => document.getElementById(id).oninput = draw);
+document.getElementById('reset').onclick = draw;
+window.onresize = resize;
+resize();
+</script>
+</body>
+</html>
