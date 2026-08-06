@@ -1,0 +1,9 @@
+Visualizers are lacking:
+* https://www.desmos.com/calculator/n1698xdz63
+* https://samuelj.li/complex-function-plotter/#1%2Fz
+
+Viz + Textbook, cool but not what I'm looking for:
+* https://complex-analysis.com/content/complex_differentiation.html
+
+Videos, which are nice but I don't want to sit through hours: 
+* https://www.youtube.com/watch?v=0CHZMY02Dhk&list=PLDcSwjT2BF_UDdkQ3KQjX5SRQ2DLLwv0R&index=8
