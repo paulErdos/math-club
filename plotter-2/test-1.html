@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Complex Function Plotter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js">
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #0b0e17;
+            color: #e0e8f0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: #121824;
+            border-radius: 24px;
+            padding: 28px 32px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            border: 1px solid #1e2a3a;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #88c0ff, #d4a0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+        .subtitle {
+            color: #8899bb;
+            font-size: 14px;
+            margin-bottom: 18px;
+            border-left: 3px solid #3a4a6a;
+            padding-left: 14px;
+            margin-top: -2px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            background: #0f1622;
+            border-radius: 16px;
+            padding: 14px 20px;
+            margin-bottom: 22px;
+            border: 1px solid #1c2740;
+        }
+        .controls label {
+            font-weight: 500;
+            color: #aabbdd;
+            font-size: 15px;
+        }
+        .controls input {
+            flex: 1;
+            min-width: 160px;
+            background: #1a2335;
+            border: 1px solid #2a3a5a;
+            border-radius: 10px;
+            padding: 10px 16px;
+            color: #e8f0ff;
+            font-size: 16px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .controls input:focus {
+            border-color: #6a8adf;
+            box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.15);
+        }
+        .controls button {
+            background: #2a3f6a;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 22px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .controls button:hover {
+            background: #3a5a8a;
+            transform: scale(1.02);
+            box-shadow: 0 4px 16px rgba(60, 120, 255, 0.25);
+        }
+        .presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-left: 4px;
+        }
+        .presets button {
+            background: #192236;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid #2a3a5a;
+            border-radius: 8px;
+            color: #b0c8ee;
+            transition: all 0.15s;
+        }
+        .presets button:hover {
+            background: #2a3f6a;
+            color: #fff;
+            border-color: #4a7acc;
+            transform: none;
+            box-shadow: 0 0 20px rgba(60, 120, 255, 0.15);
+        }
+        .planes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 4px;
+        }
+        .plane {
+            background: #0c111e;
+            border-radius: 18px;
+            padding: 14px 14px 10px;
+            border: 1px solid #1a2740;
+            transition: border-color 0.3s;
+        }
+        .plane:hover {
+            border-color: #2a406a;
+        }
+        .plane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 0 4px;
+        }
+        .plane-header h3 {
+            font-size: 16px;
+            font-weight: 500;
+            color: #b0c8ee;
+            letter-spacing: 0.3px;
+        }
+        .plane-header .badge {
+            font-size: 12px;
+            background: #1a2740;
+            padding: 2px 12px;
+            border-radius: 20px;
+            color: #7a9acc;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 1/1;
+            border-radius: 12px;
+            background: #060a14;
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+        .info-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 18px;
+            padding: 12px 18px;
+            background: #0f1622;
+            border-radius: 14px;
+            border: 1px solid #1a2740;
+            min-height: 48px;
+            gap: 10px;
+        }
+        .info-bar .coords {
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            color: #99bbdd;
+        }
+        .info-bar .coords span {
+            color: #dde8ff;
+            font-weight: 500;
+        }
+        .info-bar .status {
+            color: #6688aa;
+            font-size: 14px;
+        }
+        .info-bar .status strong {
+            color: #aac4ee;
+        }
+        @media (max-width: 820px) {
+            .planes {
+                grid-template-columns: 1fr;
+                gap: 28px;
+            }
+            .container {
+                padding: 16px 16px 20px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .presets {
+                justify-content: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .controls input {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+            .plane-header h3 {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>✦ Complex Function Plotter</h1>
+        <div class="subtitle">Preimage → Image · click any point to trace the mapping</div>
+
+        <div class="controls">
+            <label for="funcInput">f(z) =</label>
+            <input type="text" id="funcInput" value="z^2 + 0.5" spellcheck="false" />
+            <button id="plotBtn">↻ Plot</button>
+            <div class="presets">
+                <button data-fn="z^2">z²</button>
+                <button data-fn="sin(z)">sin(z)</button>
+                <button data-fn="exp(z)">exp(z)</button>
+                <button data-fn="log(z)">log(z)</button>
+                <button data-fn="1/z">1/z</button>
+                <button data-fn="z^3 - z">z³−z</button>
+                <button data-fn="sqrt(z)">√z</button>
+                <button data-fn="tan(z)">tan(z)</button>
+            </div>
+        </div>
+
+        <div class="planes">
+            <div class="plane">
+                <div class="plane-header">
+                    <h3>⬡ Preimage · z‑plane</h3>
+                    <span class="badge">domain</span>
+                </div>
+                <canvas id="preCanvas" width="600" height="600"></canvas>
+            </div>
+            <div class="plane">
+                <div class="plane-header">
+                    <h3>◈ Image · w‑plane</h3>
+                    <span class="badge">codomain</span>
+                </div>
+                <canvas id="imgCanvas" width="600" height="600"></canvas>
+            </div>
+        </div>
+
+        <div class="info-bar">
+            <div class="coords" id="coordDisplay">
+                <span id="preCoord">z = —</span> &nbsp;→&nbsp; <span id="imgCoord">w = —</span>
+            </div>
+            <div class="status" id="statusMsg">
+                <strong>●</strong> Click on the preimage plane to trace a point
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---- DOM refs ----
+            const preCanvas = document.getElementById('preCanvas');
+            const imgCanvas = document.getElementById('imgCanvas');
+            const funcInput = document.getElementById('funcInput');
+            const plotBtn = document.getElementById('plotBtn');
+            const preCoord = document.getElementById('preCoord');
+            const imgCoord = document.getElementById('imgCoord');
+            const statusMsg = document.getElementById('statusMsg');
+
+            const W = 600,
+                H = 600;
+
+            // ---- State ----
+            let currentFunction = 'z^2 + 0.5';
+            let gridData = []; // [{z, w, color}]
+            let gridLines = { horizontal: [], vertical: [] }; // for image plane curves
+            let viewRange = { xMin: -3.0, xMax: 3.0, yMin: -3.0, yMax: 3.0 };
+            let imgRange = { xMin: -3.0, xMax: 3.0, yMin: -3.0, yMax: 3.0 };
+            let selectedPoint = null; // {z, w, color}
+            let hoverZ = null; // {re, im}
+
+            // ---- Color utilities ----
+            function hslToRgb(h, s, l) {
+                h = ((h % 1) + 1) % 1;
+                const c = (1 - Math.abs(2 * l - 1)) * s;
+                const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+                const m = l - c / 2;
+                let r, g, b;
+                if (h < 1 / 6) { r = c;
+                    g = x;
+                    b = 0; } else if (h < 2 / 6) { r = x;
+                    g = c;
+                    b = 0; } else if (h < 3 / 6) { r = 0;
+                    g = c;
+                    b = x; } else if (h < 4 / 6) { r = 0;
+                    g = x;
+                    b = c; } else if (h < 5 / 6) { r = x;
+                    g = 0;
+                    b = c; } else { r = c;
+                    g = 0;
+                    b = x; }
+                return [r + m, g + m, b + m];
+            }
+
+            function domainColor(re, im) {
+                const r = Math.sqrt(re * re + im * im);
+                const theta = Math.atan2(im, re);
+                const hue = (theta / (2 * Math.PI) + 0.5) % 1.0;
+                const sat = 0.85;
+                const maxR = 3.5;
+                const light = 0.45 + 0.35 * Math.min(r / maxR, 1.0);
+                return hslToRgb(hue, sat, light);
+            }
+
+            function colorToHex(rgb) {
+                const [r, g, b] = rgb;
+                const toHex = (v) => Math.min(255, Math.max(0, Math.round(v * 255))).toString(16).padStart(2, '0');
+                return '#' + toHex(r) + toHex(g) + toHex(b);
+            }
+
+            // ---- Complex math wrapper ----
+            function evalFunction(fnStr, z) {
+                try {
+                    const scope = { z: z };
+                    const result = math.evaluate(fnStr, scope);
+                    if (typeof result === 'number') return math.complex(result, 0);
+                    return result;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // ---- Grid generation ----
+            function generateGrid(fnStr, xMin, xMax, yMin, yMax, steps) {
+                const points = [];
+                const stepX = (xMax - xMin) / steps;
+                const stepY = (yMax - yMin) / steps;
+
+                for (let i = 0; i <= steps; i++) {
+                    for (let j = 0; j <= steps; j++) {
+                        const x = xMin + i * stepX;
+                        const y = yMin + j * stepY;
+                        const z = math.complex(x, y);
+                        const w = evalFunction(fnStr, z);
+                        if (w === null || !isFinite(w.re) || !isFinite(w.im)) continue;
+                        const color = domainColor(x, y);
+                        points.push({
+                            z: z,
+                            w: w,
+                            color: color,
+                            x: x,
+                            y: y,
+                            i: i,
+                            j: j
+                        });
+                    }
+                }
+                return points;
+            }
+
+            function buildGridLines(points, steps) {
+                // Build horizontal and vertical line segments for the image plane
+                const hLines = [];
+                const vLines = [];
+                const step = steps;
+
+                // Group by row (j)
+                const rows = {};
+                const cols = {};
+                for (const p of points) {
+                    const key = p.j;
+                    if (!rows[key]) rows[key] = [];
+                    rows[key].push(p);
+                    const cKey = p.i;
+                    if (!cols[cKey]) cols[cKey] = [];
+                    cols[cKey].push(p);
+                }
+
+                // Sort each row by x
+                for (const key in rows) {
+                    rows[key].sort((a, b) => a.x - b.x);
+                    hLines.push(rows[key]);
+                }
+                for (const key in cols) {
+                    cols[key].sort((a, b) => a.y - b.y);
+                    vLines.push(cols[key]);
+                }
+
+                return { horizontal: hLines, vertical: vLines };
+            }
+
+            // ---- Coordinate transforms ----
+            function complexToCanvas(cx, cy, range, canvasW, canvasH) {
+                const x = (cx - range.xMin) / (range.xMax - range.xMin) * canvasW;
+                const y = (range.yMax - cy) / (range.yMax - range.yMin) * canvasH;
+                return { x, y };
+            }
+
+            function canvasToComplex(cx, cy, range, canvasW, canvasH) {
+                const re = (cx / canvasW) * (range.xMax - range.xMin) + range.xMin;
+                const im = (range.yMax - cy / canvasH * (range.yMax - range.yMin));
+                return { re, im };
+            }
+
+            // ---- Compute image range ----
+            function computeImageRange(points, padding) {
+                if (points.length === 0) return { xMin: -3, xMax: 3, yMin: -3, yMax: 3 };
+                let xMin = Infinity,
+                    xMax = -Infinity,
+                    yMin = Infinity,
+                    yMax = -Infinity;
+                for (const p of points) {
+                    const r = p.w.re,
+                        i = p.w.im;
+                    if (isFinite(r) && isFinite(i)) {
+                        if (r < xMin) xMin = r;
+                        if (r > xMax) xMax = r;
+                        if (i < yMin) yMin = i;
+                        if (i > yMax) yMax = i;
+                    }
+                }
+                const pad = padding || 0.4;
+                const dx = (xMax - xMin) || 1;
+                const dy = (yMax - yMin) || 1;
+                const maxDim = Math.max(dx, dy);
+                const cx = (xMin + xMax) / 2;
+                const cy = (yMin + yMax) / 2;
+                const half = maxDim / 2 + pad;
+                return {
+                    xMin: cx - half,
+                    xMax: cx + half,
+                    yMin: cy - half,
+                    yMax: cy + half
+                };
+            }
+
+            // ---- Rendering ----
+            function renderPlane(canvas, points, range, isPreimage, highlightPoint, gridLinesData) {
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width,
+                    h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                // ---- Background ----
+                const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.7);
+                bgGrad.addColorStop(0, '#121c2e');
+                bgGrad.addColorStop(1, '#060a14');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, w, h);
+
+                // ---- Draw grid lines (image plane only) ----
+                if (!isPreimage && gridLinesData) {
+                    const lines = [...gridLinesData.horizontal, ...gridLinesData.vertical];
+                    for (const line of lines) {
+                        if (line.length < 2) continue;
+                        ctx.beginPath();
+                        let first = true;
+                        for (const p of line) {
+                            const pos = complexToCanvas(p.w.re, p.w.im, range, w, h);
+                            if (first) { ctx.moveTo(pos.x, pos.y);
+                                first = false; } else ctx.lineTo(pos.x, pos.y);
+                        }
+                        // Use the color of the first point for the line
+                        const col = line.length > 0 ? line[0].color : [0.5, 0.5, 0.5];
+                        const hex = colorToHex(col);
+                        ctx.strokeStyle = hex;
+                        ctx.globalAlpha = 0.35;
+                        ctx.lineWidth = 1.2;
+                        ctx.stroke();
+                        ctx.globalAlpha = 1.0;
+                    }
+                }
+
+                // ---- Draw points ----
+                const pointSize = isPreimage ? 4.5 : 4.0;
+                for (const p of points) {
+                    const pos = complexToCanvas(
+                        isPreimage ? p.z.re : p.w.re,
+                        isPreimage ? p.z.im : p.w.im,
+                        range, w, h
+                    );
+                    const hex = colorToHex(p.color);
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, pointSize, 0, Math.PI * 2);
+                    ctx.fillStyle = hex;
+                    ctx.fill();
+                    ctx.shadowColor = hex;
+                    ctx.shadowBlur = 6;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+
+                // ---- Draw axes ----
+                ctx.save();
+                ctx.strokeStyle = 'rgba(80, 130, 200, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 6]);
+                // Horizontal axis
+                const origin = complexToCanvas(0, 0, range, w, h);
+                const yTop = complexToCanvas(0, range.yMax, range, w, h);
+                const yBottom = complexToCanvas(0, range.yMin, range, w, h);
+                ctx.beginPath();
+                ctx.moveTo(yTop.x, yTop.y);
+                ctx.lineTo(yBottom.x, yBottom.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, origin.y);
+                ctx.lineTo(w, origin.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+
+                // ---- Axis labels ----
+                ctx.save();
+                ctx.font = '11px "Segoe UI", sans-serif';
+                ctx.fillStyle = 'rgba(140, 180, 230, 0.5)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                // Re axis
+                const labelX = complexToCanvas(2.6, 0, range, w, h);
+                ctx.fillText(isPreimage ? 'Re' : 'Re', labelX.x + 12, labelX.y - 6);
+                // Im axis
+                const labelY = complexToCanvas(0, 2.4, range, w, h);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(isPreimage ? 'Im' : 'Im', labelY.x - 10, labelY.y - 8);
+
+                // Origin
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = 'rgba(140, 180, 230, 0.3)';
+                ctx.font = '10px "Segoe UI", sans-serif';
+                const oPos = complexToCanvas(0, 0, range, w, h);
+                ctx.fillText('0', oPos.x - 6, oPos.y + 4);
+
+                // ---- Draw selected / hover point ----
+                if (highlightPoint) {
+                    const pos = complexToCanvas(
+                        isPreimage ? highlightPoint.z.re : highlightPoint.w.re,
+                        isPreimage ? highlightPoint.z.im : highlightPoint.w.im,
+                        range, w, h
+                    );
+                    const col = highlightPoint.color;
+                    const hex = colorToHex(col);
+                    ctx.save();
+                    // Outer glow
+                    const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 28);
+                    grad.addColorStop(0, hex + '80');
+                    grad.addColorStop(1, hex + '00');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 28, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Ring
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2.5;
+                    ctx.shadowColor = '#ffffff';
+                    ctx.shadowBlur = 16;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = hex;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // ---- Coordinate grid tick marks ----
+                ctx.save();
+                ctx.fillStyle = 'rgba(100, 150, 220, 0.2)';
+                ctx.font = '9px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                const step = 1.0;
+                for (let v = -3; v <= 3; v += step) {
+                    if (Math.abs(v) < 0.01) continue;
+                    const posX = complexToCanvas(v, 0, range, w, h);
+                    const posY = complexToCanvas(0, v, range, w, h);
+                    ctx.fillStyle = 'rgba(100, 150, 220, 0.15)';
+                    ctx.fillText(v.toFixed(1), posX.x, posX.y + 3);
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(v.toFixed(1), posY.x - 4, posY.y);
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                }
+                ctx.restore();
+
+                // ---- Border ----
+                ctx.save();
+                ctx.strokeStyle = 'rgba(40, 70, 120, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, w, h);
+                ctx.restore();
+            }
+
+            // ---- Main plot function ----
+            function plot() {
+                const fnStr = funcInput.value.trim() || 'z^2';
+                currentFunction = fnStr;
+
+                const steps = 28;
+                const xMin = viewRange.xMin,
+                    xMax = viewRange.xMax;
+                const yMin = viewRange.yMin,
+                    yMax = viewRange.yMax;
+
+                // Generate grid points
+                const points = generateGrid(fnStr, xMin, xMax, yMin, yMax, steps);
+                if (points.length === 0) {
+                    statusMsg.innerHTML = '<strong>⚠</strong> No valid points — check your function';
+                    return;
+                }
+
+                gridData = points;
+
+                // Build grid lines for image plane
+                const lines = buildGridLines(points, steps);
+                gridLines = lines;
+
+                // Compute image range
+                imgRange = computeImageRange(points, 0.5);
+
+                // Ensure square aspect for image range
+                const dx = imgRange.xMax - imgRange.xMin;
+                const dy = imgRange.yMax - imgRange.yMin;
+                const maxDim = Math.max(dx, dy);
+                const cxImg = (imgRange.xMin + imgRange.xMax) / 2;
+                const cyImg = (imgRange.yMin + imgRange.yMax) / 2;
+                const half = maxDim / 2 + 0.3;
+                imgRange.xMin = cxImg - half;
+                imgRange.xMax = cxImg + half;
+                imgRange.yMin = cyImg - half;
+                imgRange.yMax = cyImg + half;
+
+                // Render
+                renderPlane(preCanvas, points, viewRange, true, selectedPoint, null);
+                renderPlane(imgCanvas, points, imgRange, false, selectedPoint, lines);
+
+                statusMsg.innerHTML = `<strong>✓</strong> Mapped ${points.length} points · ` +
+                    `click on the preimage to trace a point`;
+                preCoord.textContent = 'z = —';
+                imgCoord.textContent = 'w = —';
+            }
+
+            // ---- Find nearest point ----
+            function findNearest(cx, cy, range, points, isPreimage) {
+                let best = null;
+                let bestDist = Infinity;
+                const w = preCanvas.width,
+                    h = preCanvas.height;
+                for (const p of points) {
+                    const pos = complexToCanvas(
+                        isPreimage ? p.z.re : p.w.re,
+                        isPreimage ? p.z.im : p.w.im,
+                        range, w, h
+                    );
+                    const d = (pos.x - cx) ** 2 + (pos.y - cy) ** 2;
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = p;
+                    }
+                }
+                // Threshold: only select if within 30px
+                if (bestDist > 30 * 30) return null;
+                return best;
+            }
+
+            // ---- Click handler ----
+            function onPreClick(e) {
+                const rect = preCanvas.getBoundingClientRect();
+                const scaleX = preCanvas.width / rect.width;
+                const scaleY = preCanvas.height / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+
+                const point = findNearest(mx, my, viewRange, gridData, true);
+                if (point) {
+                    selectedPoint = point;
+                    preCoord.textContent = `z = ${point.z.re.toFixed(3)} ${point.z.im >= 0 ? '+' : ''}${point.z.im.toFixed(3)}i`;
+                    imgCoord.textContent = `w = ${point.w.re.toFixed(3)} ${point.w.im >= 0 ? '+' : ''}${point.w.im.toFixed(3)}i`;
+                    statusMsg.innerHTML = `<strong>📍</strong> Tracing point · z → w`;
+                    renderPlane(preCanvas, gridData, viewRange, true, selectedPoint, null);
+                    renderPlane(imgCanvas, gridData, imgRange, false, selectedPoint, gridLines);
+                } else {
+                    selectedPoint = null;
+                    preCoord.textContent = 'z = —';
+                    imgCoord.textContent = 'w = —';
+                    statusMsg.innerHTML = '<strong>●</strong> Click on the preimage plane to trace a point';
+                    renderPlane(preCanvas, gridData, viewRange, true, null, null);
+                    renderPlane(imgCanvas, gridData, imgRange, false, null, gridLines);
+                }
+            }
+
+            // ---- Preset buttons ----
+            document.querySelectorAll('.presets button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const fn = this.dataset.fn;
+                    funcInput.value = fn;
+                    plot();
+                });
+            });
+
+            // ---- Plot button ----
+            plotBtn.addEventListener('click', plot);
+
+            // ---- Enter key ----
+            funcInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') plot();
+            });
+
+            // ---- Click on preimage ----
+            preCanvas.addEventListener('click', onPreClick);
+
+            // ---- Hover on preimage (show tooltip coordinates) ----
+            preCanvas.addEventListener('mousemove', function(e) {
+                const rect = preCanvas.getBoundingClientRect();
+                const scaleX = preCanvas.width / rect.width;
+                const scaleY = preCanvas.height / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+                const c = canvasToComplex(mx, my, viewRange, preCanvas.width, preCanvas.height);
+                hoverZ = c;
+                // Show coords in status
+                if (!selectedPoint) {
+                    const reStr = c.re.toFixed(2);
+                    const imStr = c.im.toFixed(2);
+                    const sign = c.im >= 0 ? '+' : '';
+                    statusMsg.innerHTML = `<strong>◉</strong> z = ${reStr} ${sign}${imStr}i  ·  click to trace`;
+                }
+            });
+
+            preCanvas.addEventListener('mouseleave', function() {
+                if (!selectedPoint) {
+                    statusMsg.innerHTML = '<strong>●</strong> Click on the preimage plane to trace a point';
+                }
+                hoverZ = null;
+            });
+
+            // ---- Window resize: re-render ----
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    if (gridData.length > 0) {
+                        renderPlane(preCanvas, gridData, viewRange, true, selectedPoint, null);
+                        renderPlane(imgCanvas, gridData, imgRange, false, selectedPoint, gridLines);
+                    }
+                }, 200);
+            });
+
+            // ---- Initial plot ----
+            plot();
+
+            // ---- Expose for debugging ----
+            window.__plotter = { plot, gridData, viewRange, imgRange, selectedPoint };
+
+            // ---- Handle edge cases for mathjs ----
+            // Ensure mathjs is loaded
+            if (typeof math === 'undefined') {
+                statusMsg.innerHTML = '<strong>⚠</strong> mathjs library not loaded — check internet connection';
+            }
+
+        })();
+    </script>
+
+</body>
+</html>

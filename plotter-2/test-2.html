@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Complex Curve Mapper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0b0e17;
+            color: #e0e8f0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            max-width: 1100px;
+            width: 100%;
+            background: #121824;
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid #1a2740;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+            background: #0f1622;
+            padding: 14px 18px;
+            border-radius: 14px;
+            border: 1px solid #1a2740;
+        }
+        .controls label {
+            font-weight: 500;
+            color: #aabbdd;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .controls input {
+            flex: 1;
+            min-width: 140px;
+            background: #1a2335;
+            border: 1px solid #2a3a5a;
+            border-radius: 8px;
+            padding: 8px 14px;
+            color: #e8f0ff;
+            font-family: 'Consolas', monospace;
+            font-size: 15px;
+            outline: none;
+        }
+        .controls input:focus {
+            border-color: #6a8adf;
+        }
+        .controls button {
+            background: #2a3f6a;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 20px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+        .controls button:hover {
+            background: #3a5a8a;
+        }
+        .row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .col {
+            flex: 1;
+            min-width: 280px;
+        }
+        .canvas-box {
+            background: #0c111e;
+            border-radius: 12px;
+            padding: 10px;
+            border: 1px solid #1a2740;
+        }
+        .canvas-box h3 {
+            font-size: 16px;
+            font-weight: 400;
+            color: #b0c8ee;
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+        canvas {
+            width: 100%;
+            aspect-ratio: 1/1;
+            display: block;
+            border-radius: 8px;
+            background: #060a14;
+        }
+        .info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 14px;
+            padding: 8px 14px;
+            background: #0f1622;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #8899bb;
+            border: 1px solid #1a2740;
+        }
+        .info span {
+            color: #dde8ff;
+        }
+        @media (max-width: 700px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <label>Curve:</label>
+            <input type="text" id="curveInput" value="x^2 + y^2 = 4" spellcheck="false" />
+            <label>Map: w =</label>
+            <input type="text" id="mapInput" value="1/z" spellcheck="false" />
+            <button id="plotBtn">Plot</button>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="canvas-box">
+                    <h3>⬡ Preimage (z‑plane)</h3>
+                    <canvas id="preCanvas" width="600" height="600"></canvas>
+                </div>
+            </div>
+            <div class="col">
+                <div class="canvas-box">
+                    <h3>◈ Image (w‑plane)</h3>
+                    <canvas id="imgCanvas" width="600" height="600"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            <div><span id="curvePoints">0</span> points on curve</div>
+            <div id="status">Ready</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const preCanvas = document.getElementById('preCanvas');
+            const imgCanvas = document.getElementById('imgCanvas');
+            const curveInput = document.getElementById('curveInput');
+            const mapInput = document.getElementById('mapInput');
+            const plotBtn = document.getElementById('plotBtn');
+            const curvePointsSpan = document.getElementById('curvePoints');
+            const statusDiv = document.getElementById('status');
+
+            const W = 600,
+                H = 600;
+            const VIEW_RANGE = { xMin: -3.0, xMax: 3.0, yMin: -3.0, yMax: 3.0 };
+
+            // ---- helper: canvas coordinate transform ----
+            function toCanvas(cx, cy, range) {
+                const x = (cx - range.xMin) / (range.xMax - range.xMin) * W;
+                const y = (range.yMax - cy) / (range.yMax - range.yMin) * H;
+                return { x, y };
+            }
+
+            // ---- draw grid lines on a canvas ----
+            function drawGrid(ctx, range) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(60, 100, 180, 0.2)';
+                ctx.lineWidth = 0.8;
+                const step = 0.5;
+                // vertical lines
+                for (let v = Math.ceil(range.xMin / step) * step; v <= range.xMax; v += step) {
+                    if (Math.abs(v) < 0.01) continue;
+                    const p = toCanvas(v, 0, range);
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, 0);
+                    ctx.lineTo(p.x, H);
+                    ctx.stroke();
+                }
+                // horizontal
+                for (let v = Math.ceil(range.yMin / step) * step; v <= range.yMax; v += step) {
+                    if (Math.abs(v) < 0.01) continue;
+                    const p = toCanvas(0, v, range);
+                    ctx.beginPath();
+                    ctx.moveTo(0, p.y);
+                    ctx.lineTo(W, p.y);
+                    ctx.stroke();
+                }
+                // axes (thicker)
+                ctx.strokeStyle = 'rgba(100, 160, 240, 0.35)';
+                ctx.lineWidth = 1.2;
+                const origin = toCanvas(0, 0, range);
+                ctx.beginPath();
+                ctx.moveTo(0, origin.y);
+                ctx.lineTo(W, origin.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(origin.x, 0);
+                ctx.lineTo(origin.x, H);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // ---- marching squares: extract contour at level 0 ----
+            function extractContour(expr, range, steps) {
+                const stepX = (range.xMax - range.xMin) / steps;
+                const stepY = (range.yMax - range.yMin) / steps;
+                const values = [];
+                // evaluate grid
+                for (let j = 0; j <= steps; j++) {
+                    const y = range.yMin + j * stepY;
+                    const row = [];
+                    for (let i = 0; i <= steps; i++) {
+                        const x = range.xMin + i * stepX;
+                        try {
+                            const scope = { x, y };
+                            const val = math.evaluate(expr, scope);
+                            row.push(isFinite(val) ? val : 0);
+                        } catch (e) {
+                            row.push(0);
+                        }
+                    }
+                    values.push(row);
+                }
+
+                const segments = [];
+                // iterate over cells
+                for (let j = 0; j < steps; j++) {
+                    for (let i = 0; i < steps; i++) {
+                        const v00 = values[j][i];
+                        const v10 = values[j][i + 1];
+                        const v01 = values[j + 1][i];
+                        const v11 = values[j + 1][i + 1];
+                        // check if zero is within this cell (sign change)
+                        const minVal = Math.min(v00, v10, v01, v11);
+                        const maxVal = Math.max(v00, v10, v01, v11);
+                        if (minVal > 0 || maxVal < 0) continue; // no zero crossing
+
+                        // simple linear interpolation for each edge
+                        const x0 = range.xMin + i * stepX;
+                        const x1 = range.xMin + (i + 1) * stepX;
+                        const y0 = range.yMin + j * stepY;
+                        const y1 = range.yMin + (j + 1) * stepY;
+
+                        const edges = [];
+                        // bottom edge (v00 -> v10)
+                        if (v00 * v10 < 0) {
+                            const t = -v00 / (v10 - v00);
+                            edges.push({ x: x0 + t * (x1 - x0), y: y0 });
+                        }
+                        // right edge (v10 -> v11)
+                        if (v10 * v11 < 0) {
+                            const t = -v10 / (v11 - v10);
+                            edges.push({ x: x1, y: y0 + t * (y1 - y0) });
+                        }
+                        // top edge (v01 -> v11)
+                        if (v01 * v11 < 0) {
+                            const t = -v01 / (v11 - v01);
+                            edges.push({ x: x0 + t * (x1 - x0), y: y1 });
+                        }
+                        // left edge (v00 -> v01)
+                        if (v00 * v01 < 0) {
+                            const t = -v00 / (v01 - v00);
+                            edges.push({ x: x0, y: y0 + t * (y1 - y0) });
+                        }
+
+                        if (edges.length >= 2) {
+                            segments.push({ p1: edges[0], p2: edges[1] });
+                        }
+                    }
+                }
+                return segments;
+            }
+
+            // ---- render ----
+            function render(curveExpr, mapExpr) {
+                const range = VIEW_RANGE;
+                const steps = 120; // resolution
+
+                // 1. extract curve segments in preimage
+                const segments = extractContour(curveExpr, range, steps);
+                const points = [];
+                for (const seg of segments) {
+                    points.push(seg.p1);
+                    points.push(seg.p2);
+                }
+                curvePointsSpan.textContent = points.length;
+
+                // 2. draw preimage
+                const preCtx = preCanvas.getContext('2d');
+                preCtx.clearRect(0, 0, W, H);
+                drawGrid(preCtx, range);
+
+                // draw curve (cyan)
+                if (segments.length > 0) {
+                    preCtx.save();
+                    preCtx.strokeStyle = '#00e5ff';
+                    preCtx.lineWidth = 2.5;
+                    preCtx.shadowColor = '#00e5ff';
+                    preCtx.shadowBlur = 8;
+                    for (const seg of segments) {
+                        const p1 = toCanvas(seg.p1.x, seg.p1.y, range);
+                        const p2 = toCanvas(seg.p2.x, seg.p2.y, range);
+                        preCtx.beginPath();
+                        preCtx.moveTo(p1.x, p1.y);
+                        preCtx.lineTo(p2.x, p2.y);
+                        preCtx.stroke();
+                    }
+                    preCtx.restore();
+                }
+
+                // 3. compute image curve: for each point on the curve, map w = f(z)
+                const imgPoints = [];
+                for (const seg of segments) {
+                    const pts = [seg.p1, seg.p2];
+                    for (const p of pts) {
+                        const z = math.complex(p.x, p.y);
+                        try {
+                            const scope = { z };
+                            const w = math.evaluate(mapExpr, scope);
+                            if (w && isFinite(w.re) && isFinite(w.im)) {
+                                imgPoints.push({ x: w.re, y: w.im });
+                            }
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
+                }
+
+                // 4. determine image range (auto-scale)
+                let xMin = Infinity,
+                    xMax = -Infinity,
+                    yMin = Infinity,
+                    yMax = -Infinity;
+                if (imgPoints.length > 0) {
+                    for (const p of imgPoints) {
+                        if (p.x < xMin) xMin = p.x;
+                        if (p.x > xMax) xMax = p.x;
+                        if (p.y < yMin) yMin = p.y;
+                        if (p.y > yMax) yMax = p.y;
+                    }
+                    const pad = Math.max((xMax - xMin) * 0.2, (yMax - yMin) * 0.2, 0.5);
+                    xMin -= pad;
+                    xMax += pad;
+                    yMin -= pad;
+                    yMax += pad;
+                } else {
+                    xMin = -2;
+                    xMax = 2;
+                    yMin = -2;
+                    yMax = 2;
+                }
+                const imgRange = { xMin, xMax, yMin, yMax };
+
+                // 5. draw image plane
+                const imgCtx = imgCanvas.getContext('2d');
+                imgCtx.clearRect(0, 0, W, H);
+                drawGrid(imgCtx, imgRange);
+
+                if (imgPoints.length > 1) {
+                    imgCtx.save();
+                    imgCtx.strokeStyle = '#ffaa33';
+                    imgCtx.lineWidth = 2.5;
+                    imgCtx.shadowColor = '#ffaa33';
+                    imgCtx.shadowBlur = 8;
+                    imgCtx.beginPath();
+                    const first = toCanvas(imgPoints[0].x, imgPoints[0].y, imgRange);
+                    imgCtx.moveTo(first.x, first.y);
+                    for (let i = 1; i < imgPoints.length; i++) {
+                        const pt = toCanvas(imgPoints[i].x, imgPoints[i].y, imgRange);
+                        imgCtx.lineTo(pt.x, pt.y);
+                    }
+                    imgCtx.stroke();
+                    imgCtx.restore();
+                }
+
+                statusDiv.textContent = `Segments: ${segments.length} · Image points: ${imgPoints.length}`;
+            }
+
+            // ---- plot action ----
+            function plot() {
+                let curveExpr = curveInput.value.trim();
+                // support equals sign: convert "x^2 + y^2 = 4" to "x^2 + y^2 - 4"
+                curveExpr = curveExpr.replace(/=/g, '-');
+                // also allow "x^2 + y^2 - 4" directly
+                const mapExpr = mapInput.value.trim() || 'z';
+                try {
+                    render(curveExpr, mapExpr);
+                } catch (e) {
+                    statusDiv.textContent = 'Error: ' + e.message;
+                }
+            }
+
+            plotBtn.addEventListener('click', plot);
+            curveInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') plot(); });
+            mapInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') plot(); });
+
+            // initial plot
+            plot();
+
+        })();
+    </script>
+</body>
+</html>
