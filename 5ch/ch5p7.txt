@@ -1,0 +1,55 @@
+Cartesian
+===============
+
+ifx = fy
+i(u+iv)x = (u+iv)y
+iux -vx  = uy + ivy
+
+Thus
+
+ux = vy, -vx = uy
+
+
+The linear mapping
+====================
+
+f(z) = az + b, ab in C
+     = (c + di)z + (e + fi)
+
+
+
+=============================================================================
+The only mapping sending parallel lines to parallel lines is the linear map
+=============================================================================
+
+Map horizontal lines to horizontal lines
+-------------------------------------------------------------------------------
+
+f(z) = u(x,y) + iv(x,y)
+
+Linear map
+f(z) = az + b, ab in C, cdef in R
+     = (c + di)z + (e + fi)
+     = cz + diz  + e + fi
+     = cz + e + dzi + fi
+     = (cz + e) + i(dz + f)
+     = c(x + iy) + e + id(x+iy) + if
+     = cx  + icy + e + idx - dy + if
+     = cx + e - dy + icy + idx + if
+     = (cx + e - dy) + i(cy + dx + f)
+     
+u(x,y) = cx - dy + e
+v(x,y) = cy + dx + f  
+
+Let's not use d, f, g, h, i, j, and instead use k
+
+u(x,y) = cx - ky + e
+v(x,y) = cy + kx + f  
+
+
+ ux =  c
+ vy =  c
+-vx = -k
+ uy = -k
+ 
+cr checks out. And we can't let c or k be zero. Or, we could.  

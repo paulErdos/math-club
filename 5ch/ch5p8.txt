@@ -1,0 +1,279 @@
+===================
+Rewrite in polar
+===================
+
+log(i + 1)
+i + 1 = root2 * e^(i*pi/4)
+log(i + 1) = log(root2 * e^(ipi/4)) = log(2^0.5) + log(e^(ipi/4))
+= 0.5log(2) + ipi/4*log(e)
+re(log(i + 1)) = 0.5 log2     = 0.5 ln2 ~            0.35
+im(log(i + i)) = ipi*log(e)/4 = ipi/4   ~ i * 0.79 ~ 0.8i
+
+  1i__|        
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |
+      |                                                                          
+0.35i_|  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  log(1 + i)
+      |                                                           |              
+      |                                                           |               
+      |                                                           |               
+      |                                                           |               
+      |                                                           |               
+      |                                                           |              
+  0i__|__.___.___.___.___.___.___.___.___.___.___.___.___.__.__.__|__.__.__.__.__
+      |                                                           |           | 
+      0                                                           0.8         1
+      
+==================
+Amplitwist
+==================
+
+Real + Imaginary parts
+-------------------------
+
+logz = log(re^it) = (log(r) + itlog(e))' 
+choose log base e
+logz = (log(r) + it)
+re(logz) = log(r) = log(|z|)
+im(logz) = it
+
+
+Consider radial infinitesimal square from a point
+---------------------------------------------------
+
+Comment: it's weird we kind of take the derivative first before applying the function
+
+1. Find corners
+
+z0 = re^it
+z1 = (r + dr)e^it
+z2 = re^i(t + dt)
+
+2. Take logs, find landing spots in w plane
+
+log(z0) = log(re^it)        = log(r) + it
+log(z1) = log((r + dr)e^it) = log(r + dr) + it
+log(z2) = log(re^i(t + dt)) = log(r) + i(t + dt)
+
+3. Examine
+
+Finding 1:
+* As we vary the radius, the image point moves horizontally
+* As we vary angle, the image point moves vertically
+
+Finding 2:
+
+z0 -> w0 = log(r) + it        <-- This is our corner
+z1 -> w1 = log(r + dr) + it   <-- Our radial side is now our horizontal size
+z2 -> w2 = log(r) + i(t + dt) <-- Our tangential side is now our vertical side
+
+     |  z2               z1                             |  w2
+     |    .            .                                |   .
+     |      .        .                                  |   .
+     |        .    .                                    |   .
+     |          z0                    ~~log~~>          |  w0 .  .  .  . w1      
+     |                                                  |          
+     |__________________                                |__________________
+     |                                                  |         
+     |                                                  |         
+     |                                                  |                        
+
+
+Find Amplitwist
+------------------------------------------------------------------------------
+
+Amplitude 1/2 : horizontal / radial
+------------------------------
+
+1. |w1 - w0|
+
+horizontal side's endpoints
+* |w0| = |log(r) + it|
+* |w1| = |log(r + dr) + it|
+
+Meaning the length is
+* | w1 - w0 | = | log(r + dr) + it + -log(r) -it | = log(r+dr) - log(r)
+= log((r + dr) / r) = log(1 + dr/r) = What do I do with this?
+
+-----vvv begin wandering in the desert vvv ---
+(1 + x)^n = sum from k = 0 to n of (n choose k)x^k
+n choose k = n! / (k!(n-k)!)
+n choose 0 = n! / (0!(n-0)!) = 1
+n choose 1 = n! / 1!(n-1)!   = n
+n choose 2 = n! / 2(n - 2)!  = n(n-1)/2
+n choose 3 = n| / 6(n-3!)    = n(n-1)(n-2)/6
+n choose 4                   = n(n-1)(n-2)(n-3)/24
+n choose k = (1/k!) product from i = 0 to k of (n - i)
+
+Okay.
+So
+For n = 1, all n choose k for k > 1 = 0. 
+
+(x + 1)^n = sum from k = 0 to n of [(1/k!) product from i = 0 to k of (n - i)]x^k
+          = sum from k = 0 to 1 of [(1/k!) product from i = 0 to k of (n - i)]x^k
+          = 1*x^0 + n*x^1 = 1 + nx
+log((1+x)^n) = log(1 + nx)
+----- ^^^ end wandering in the desert ^^^ ---
+
+Nope. Definition of the differential
+
+d(log(r)) = log(r + dr) - log(r).
+so 
+
+| w1 - w0 | = | log(r + dr) + it + -log(r) -it | = log(r+dr) - log(r) = d(log(r)) = 1/r * dr = dr/r
+
+2. |z1 - z0|
+
+|z1 - z0| = r + dr - r = dr
+
+3. Ratio
+
+Amplitude = |w1 - w0| / |z1 - z0| = 1/r * dr * 1/dr = 1/r. 
+
+
+Amplitude 2/2: vertical / tangential
+-------------------------------------------------------------------
+
+Amplitude = |w2 - w0| / |z2 - z0|
+
+Vertical: w2 - w0
+----------------------
+
+w0 = log(z0) = log(re^it)        = log(r) + it
+w2 = log(z2) = log(re^i(t + dt)) = log(r) + i(t + dt) = log(r) + it + idt = w0 + idt
+
+w2 - w0 = logr + i(t + dt) - logr - it = it + idt - it = idt
+
+w2 and w0 are separated by dt. 
+So w2 = w0 + idt
+
+so w2 - w0 = w0 + idt - w0 = idt. 
+
+Then 
+|w2 - w0| = |idt| = | 0 + idt | --> root(0^2 + dt^2) = dt
+
+so
+|w2 - w0| = dt. 
+
+
+Tangential: z2 - z0
+---------------------
+
+z0 = re^it
+z2 = re^i(t + dt)
+
+z2 - z0 = re^it * e^idt - re^it = re^it(e^idt - 1)
+
+|z2 - z0| = |re^it(e^idt - 1)| = |re^it||(e^idt - 1)| = r|(e^idt - 1)|
+
+Wait.
+
+These two points are separated by dt angle, and so the arc length s = rt = rdt
+so
+
+|z2 - z0| = rdt. 
+
+I probably should have thought of this earlier. 
+
+
+Ratio: |w2 - w0| / |z2 - z0|
+-----------------------------
+
+w2 - w0 / z2 - z0 = dt / rdt = 1/r 
+
+
+So they're the same in both directions.
+
+So magnitude is 1/r confirmed. 
+
+
+==========
+Twist
+==========
+
+Vector z1 + z0 has angle theta
+Vector w1 + w0 has angle zero.
+
+So the twist is
+
+Twist = 0 - theta = -theta. 
+
+So twist is e^(i*(-theta)) confirmed.
+
+
+=======
+The derivative
+=======
+
+Putting those together gives
+
+log(z)' = 1/(re^it)
+
+
+=======
+Where w lands
+=======
+
+log(1+i)' = 1/(i + i) = (i - 1)/((1 + i)(1 - i)) = (1 - i) / 2 = 1/2 + -i/2
+
+   1i__|        
+       |
+       |
+       |
+       |
+       |
+       |
+       |
+       |
+       |
+       |
+       |
+       |                                                                          
+ 0.35i_|  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  z = log(1 + i) = 0.5log(2) + ipi/4
+       |                                               |              
+       |                                               |               
+       |                                               |               
+       |                                               |               
+       |                             0.5               |           1
+       |                             |                 |           |
+   0i__|__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__.__
+       |                             |                 |               
+       |                             |                 0.8                  
+       |                             |                                       
+       |                             |                                       
+-0.25i_|                             |                                       
+       |                             |                                       
+       |                             |                                       
+       |                             |                                       
+       |                             |                                       
+-0.5i__|  .  .  .  .  .  .  .  .  .  .  w = log'(1 + 1) = 1/(i + 1) = 1/2 - i/2
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+       |                                                                              
+  -1i__|     
+       |                                                                         
+ 
+          
+==========
+Verify with computer
+==========
+
+Debian builtin calculator: 1/(1+i) = 0.5 - 0.5i    --> check
+Wolframalpha:              d(log(a+bi)) = 1/(a+bi) --> check
+
+
