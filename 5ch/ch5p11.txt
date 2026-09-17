@@ -1,0 +1,30 @@
+(e^z)' = e^z
+(cos + isin)' = cost + isint
+cost' + isint' = ''
+
+-sin(t) + icos(t) = ''
+-sint + icost = cost + isint
+
+Hm. Arg = a + bi?
+
+(e^z)' = e^z
+(cosz + isinz)' = cosz + isinz
+cos(a + bi)' + isin(a + bi)'
+
+Angle sum identities
+sin(p+q) = sinpcosq + cospsinq
+cos(p+q) = cospcosq - sinpsinq
+
+so
+cos(a + bi) + isin(a + bi) =
+cos(a)cos(bi) - sin(a)sin(bi) + isin(a)cos(bi) + icos(a)sin(bi)
+
+cos(a)cos(bi) + isin(a)cos(bi) - sin(a)sin(bi) + icos(a)sin(bi)
+cos(bi)[cos(a) + isin(a)] + sin(bi)[-sin(a) + icos(a)]
+
+e^ia = (cos(a) + isin(a))' = -sin(a) + icos(a) = e^(ia)'
+
+cos(bi)[e^(ia)] + sin(bi)e^(ia)'
+
+Hm. 
+

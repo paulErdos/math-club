@@ -1,0 +1,54 @@
+Ch5p9
+
+Question: zeta^2 = 0? 
+Assumed yes.
+
+---
+
+A-a = zf'
+B-b = zg'
+
+
+A-a = zf' -> (A-a)/z = f'
+A = zf' + a
+AB = (zf' + a)(zg' + b) = z^2f'g' + zf'b + zg'a + ab = 0 + zf'b + zg'a + ab
+
+Implies
+
+AB - ab = z(f'b + g'a)
+
+Just as the book shows. I'm not sure how to get from here to the book's next step:
+(fg)' = f'g + g'f
+
+
+----
+
+A/B = (zf'+a)/(zg'+b) * (b-zg')/(b-zg') = (zf'+a)(b-zg') / (zg'b - zg'^2 + b^2 - zg'b) = (zf'+a)(b-zg') / (b^2) = b^-2 (zf'b - z^2f'g' - azg') = (zf'b - zg'a) / b^2 
+= z(bf' - ag') / b^2 
+
+Similar to the book's derivation of the product rule. 
+
+----
+
+-b = zg' - B -> b = B -zg' 
+b^2 = B^2 - 2Bzg' + 0
+
+
+a = zf' - A
+b = zg' - B
+
+-----
+
+z(f'b - g'a) / b^2 = 
+z(f'(zg' - B) - g'(zf' - A)) / b^2
+z(f'zg' - f'B) - g'f'z - g'A) / b^2
+(z^2f'g' - zf'B - g'f'z^2 + g'Az) / b^2
+(0 - zf'B + 0 + g'Az) / b^2
+(g'Az - f'Bz) / b^2
+
+
+----
+
+I don't get how to hop from this to the 
+( f'g - g'f )/ g^2
+form. 
