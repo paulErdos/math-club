@@ -5,7 +5,10 @@ cost' + isint' = ''
 -sin(t) + icos(t) = ''
 -sint + icost = cost + isint
 
+-------
+
 Hm. Arg = a + bi?
+
 
 (e^z)' = e^z
 (cosz + isinz)' = cosz + isinz
@@ -20,11 +23,105 @@ cos(a + bi) + isin(a + bi) =
 cos(a)cos(bi) - sin(a)sin(bi) + isin(a)cos(bi) + icos(a)sin(bi)
 
 cos(a)cos(bi) + isin(a)cos(bi) - sin(a)sin(bi) + icos(a)sin(bi)
+cos(a)cos(bi)  - sin(a)sin(bi) + i ( sin(a)cos(bi) + cos(a)sin(bi) )
 cos(bi)[cos(a) + isin(a)] + sin(bi)[-sin(a) + icos(a)]
 
 e^ia = (cos(a) + isin(a))' = -sin(a) + icos(a) = e^(ia)'
 
-cos(bi)[e^(ia)] + sin(bi)e^(ia)'
+cos(bi)[e^(ia)] + sin(bi)e^(ia)
 
 Hm. 
 
+-------
+
+e^z = e^(a + bi) = e^a * e^bi = e^a(cosb + isinb)
+
+e^z = e^(re^(it)) = cos(re^it) + i sin(re^it)
+
+e^z = cosz + isinz
+
+e^z = cos(a + bi) + isin(a + bi)
+
+i^-1 = -i
+i^0 = 1
+i^1 = i
+i^2 = -1
+i^3 = -i
+i^4 = 1
+i^5 = i
+
+Experiment 2
+----------------
+
+e^z 
+= e^(a + bi) 
+= e^a * e^bi 
+= e^a(cosb + isinb)
+
+e^z = cos(a + bi) + isin(a + bi) 
+= cos(bi)[cos(a) + isin(a)] + sin(bi)[-sin(a) + icos(a)]
+= cos(bi)[cos(a) + isin(a)] - sin(bi)[sin(a) - icos(a)]           <-- Something noteworthy lies between here
+= cos(bi)[cos(a) + isin(a)] - (1/i)sin(bi)[isin(a) - i^2cos(a)]
+= cos(bi)[cos(a) + isin(a)] - (-i)sin(bi)[isin(a) - (-1)cos(a)]
+= cos(bi)[cos(a) + isin(a)] - (-i)sin(bi)[isin(a) + cos(a)]
+= cos(bi)[cos(a) + isin(a)] + isin(bi)[cos(a) + isin(a)]          <-- And here
+= cos(bi)e^(ia) + isin(bi)*e^(ia)
+= e^ia(cos(bi) + isin(bi))
+= e^(ia) * e^(iib)
+= e^(ia) * e^(-b)                                                 <-- Indicative of mistake from line 27?
+
+
+
+Finding 1
+===========
+
+Part A
+-----------
+
+(e^z)'
+(cos(z) + isin(z))'
+cos(z)' + isin(z)'
+-sin(z) + icos(z)
+
+
+Interconnect
+--------------
+
+-(sin(z) - icos(z))
+
+
+Part B
+----------- 
+
+sin(a) - icos(a) = 
+(i / i)(sin(a) - icos(a))
+(1/i) (isin(a) + cos(a))
+(1/i) (cos(a) + isin(a))
+(1/i) e^ia
+
+
+
+Part B Connected
+----------- 
+
+-(sin(a) - icos(a)) = 
+-((1/i) e^ia)
+-(-i) e^ia
+i * e^ia
+
+
+Thus
+------
+
+(e^z)' = i * e^(nope!) Good finding tho. 
+
+
+
+Finding 2
+============
+
+e^z != e^ia
+
+Rather
+
+e^z = e^(a + bi) = e^a * e^bi = e^a (cos(b) + isin(b)
