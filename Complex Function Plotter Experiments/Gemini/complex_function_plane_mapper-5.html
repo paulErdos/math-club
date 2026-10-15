@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Function Plane Mapper</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0a0d14',
+                        panelbg: '#121824',
+                        bordercolor: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Math.js for complex number calculations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0d14; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-darkbg text-slate-100 h-screen overflow-hidden flex flex-col">
+
+    <div id="app" class="h-full w-full flex flex-col relative select-none">
+        
+        <!-- Top Navigation / Header -->
+        <header class="h-14 bg-panelbg/80 backdrop-blur border-b border-bordercolor flex items-center justify-between px-4 z-20 shrink-0">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-emerald-500 to-purple-500 p-2 rounded-xl shadow-lg shadow-purple-500/10">
+                    <i data-lucide="compass" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-wide bg-gradient-to-r from-emerald-400 to-purple-400 bg-clip-text text-transparent">COMPLEX PLANE MAPPER</h1>
+                    <p class="text-[10px] text-slate-400">Interactive conformal mapping & complex analysis</p>
+                </div>
+            </div>
+
+            <!-- f(z) Expression Bar (Always visible at top) -->
+            <div class="flex items-center space-x-2 bg-darkbg border border-bordercolor rounded-lg px-3 py-1.5 shadow-inner w-72 sm:w-96">
+                <span class="text-xs font-mono text-purple-400 font-bold shrink-0">f(z) =</span>
+                <input 
+                    type="text" 
+                    v-model="rawExpression" 
+                    @change="updateExpression"
+                    class="bg-transparent text-xs w-full focus:outline-none font-mono text-slate-200"
+                    placeholder="e.g. z^2, exp(z), 1/z"
+                >
+                <button @click="applyExpression" class="text-[10px] bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded transition">Apply</button>
+            </div>
+
+            <!-- Quick View Controls & Mode Indicator -->
+            <div class="flex items-center space-x-2">
+                <button @click="resetViewport" title="Center Viewport" class="p-2 hover:bg-slate-800 rounded-lg border border-bordercolor text-slate-300 transition flex items-center space-x-1 text-xs">
+                    <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="hidden md:inline">Center</span>
+                </button>
+                <div class="bg-slate-900 border border-bordercolor rounded-lg px-3 py-1 text-xs flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full" :class="isCircleInversion ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'"></span>
+                    <span class="font-medium text-slate-300">{{ isCircleInversion ? 'Circle Inversion Mode' : currentTransformName }}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Canvas Viewport Area -->
+        <main class="flex-1 relative flex overflow-hidden bg-black">
+            
+            <!-- Normal / Single Canvas Mode -->
+            <div v-show="!isCircleInversion" class="absolute inset-0 w-full h-full">
+                <canvas 
+                    ref="singleCanvas" 
+                    class="w-full h-full block cursor-grab active:cursor-grabbing"
+                    @mousedown="onMouseDown"
+                    @mousemove="onMouseMove"
+                    @mouseup="onMouseUp"
+                    @wheel.prevent="onWheel"
+                    @touchstart="onTouchStart"
+                    @touchmove="onTouchMove"
+                    @touchend="onTouchEnd"
+                ></canvas>
+            </div>
+
+            <!-- Circle Inversion Side-by-Side Mode -->
+            <div v-show="isCircleInversion" class="absolute inset-0 w-full h-full flex flex-col md:flex-row">
+                <!-- Source Domain (Interactive Circle Drag) -->
+                <div class="flex-1 h-1/2 md:h-full relative border-b md:border-b-0 md:border-r border-bordercolor bg-slate-950">
+                    <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur border border-bordercolor px-3 py-1 rounded-lg text-xs font-semibold text-emerald-400 z-10 shadow">
+                        Source Domain (Click & Drag Circle)
+                    </div>
+                    <canvas 
+                        ref="sourceCanvas" 
+                        class="w-full h-full block cursor-crosshair"
+                        @mousedown="onSourceMouseDown"
+                        @mousemove="onSourceMouseMove"
+                        @mouseup="onSourceMouseUp"
+                        @wheel.prevent="onWheel"
+                    ></canvas>
+                </div>
+                <!-- Mapped Domain -->
+                <div class="flex-1 h-1/2 md:h-full relative bg-slate-950">
+                    <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur border border-bordercolor px-3 py-1 rounded-lg text-xs font-semibold text-purple-400 z-10 shadow">
+                        Mapped Domain (Inversion Result)
+                    </div>
+                    <canvas 
+                        ref="mappedCanvas" 
+                        class="w-full h-full block"
+                    ></canvas>
+                </div>
+            </div>
+
+            <!-- Floating Overlay Notification or Error -->
+            <transition name="fade">
+                <div v-if="errorMessage" class="absolute top-4 left-1/2 -translate-x-1/2 bg-red-950/90 border border-red-500/50 text-red-200 px-4 py-2 rounded-xl text-xs z-30 shadow-xl backdrop-blur flex items-center space-x-2">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i>
+                    <span>{{ errorMessage }}</span>
+                </div>
+            </transition>
+        </main>
+
+        <!-- Tabbed Control Panel at Bottom -->
+        <footer class="bg-panelbg border-t border-bordercolor flex flex-col z-20 shrink-0 shadow-2xl">
+            
+            <!-- Tab Headers -->
+            <div class="flex items-center justify-between px-4 border-b border-bordercolor bg-slate-900/50">
+                <div class="flex space-x-1">
+                    <button 
+                        v-for="tab in tabs" 
+                        :key="tab.id"
+                        @click="activeTab = tab.id"
+                        class="px-4 py-2 text-xs font-medium flex items-center space-x-2 border-b-2 transition"
+                        :class="activeTab === tab.id ? 'border-purple-500 text-purple-400 bg-purple-500/5' : 'border-transparent text-slate-400 hover:text-slate-200'"
+                    >
+                        <i :data-lucide="tab.icon" class="w-3.5 h-3.5"></i>
+                        <span>{{ tab.name }}</span>
+                    </button>
+                </div>
+
+                <!-- Quick Animation Playback Bar (Always accessible in footer) -->
+                <div class="flex items-center space-x-3 py-1.5">
+                    <button @click="togglePlay" class="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition shadow-md shadow-purple-600/20">
+                        <i :data-lucide="isPlaying ? 'pause' : 'play'" class="w-4 h-4"></i>
+                    </button>
+                    <button @click="resetTime" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="10" 
+                        step="0.01" 
+                        v-model.number="time"
+                        class="w-24 sm:w-32 accent-purple-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    >
+                </div>
+            </div>
+
+            <!-- Tab Content Panels -->
+            <div class="p-4 max-h-56 overflow-y-auto">
+                
+                <!-- TAB 1: TRANSFORMS -->
+                <div v-show="activeTab === 'transforms'" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                    <button 
+                        v-for="fn in transformsList" 
+                        :key="fn.id"
+                        @click="selectTransform(fn)"
+                        class="p-2.5 rounded-xl border text-left transition flex flex-col justify-between group relative overflow-hidden"
+                        :class="selectedTransformId === fn.id ? 'bg-purple-900/20 border-purple-500/50 text-purple-200 shadow-lg shadow-purple-500/5' : 'bg-darkbg/60 border-bordercolor hover:border-slate-700 text-slate-300'"
+                    >
+                        <div class="flex items-center justify-between w-full mb-1">
+                            <span class="text-xs font-bold font-mono">{{ fn.symbol }}</span>
+                            <i :data-lucide="fn.icon" class="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 transition"></i>
+                        </div>
+                        <span class="text-[10px] text-slate-400 truncate">{{ fn.name }}</span>
+                    </button>
+                </div>
+
+                <!-- TAB 2: ANIMATION SETTINGS & GRID STYLE -->
+                <div v-show="activeTab === 'animation'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- Speed & Playback -->
+                    <div class="bg-darkbg/60 border border-bordercolor p-3.5 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-300">Fine-Grained Speed</span>
+                            <span class="text-xs font-mono text-purple-400">{{ speed.toFixed(3) }}x</span>
+                        </div>
+                        <!-- Speed slider heavily biased toward slower speeds using quadratic mapping -->
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.001" 
+                            v-model.number="rawSpeedSlider"
+                            class="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                        >
+                        <div class="flex justify-between text-[10px] text-slate-500">
+                            <span>0.001x (Ultra Slow)</span>
+                            <span>1.0x (Normal)</span>
+                        </div>
+                    </div>
+
+                    <!-- Line Widths & Mutually Exclusive Chips -->
+                    <div class="bg-darkbg/60 border border-bordercolor p-3.5 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-300">Grid Line Visibility & Width</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Horizontal Lines Control -->
+                            <div class="space-y-1.5 bg-slate-900/50 p-2.5 rounded-lg border border-bordercolor">
+                                <div class="flex items-center justify-between">
+                                    <button 
+                                        @click="toggleHlines"
+                                        class="px-2 py-0.5 rounded text-[10px] font-bold border transition"
+                                        :class="showHLines ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-800 text-slate-500 border-slate-700'"
+                                    >
+                                        Horizontal (Neon Green)
+                                    </button>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="range" min="0.5" max="5" step="0.1" v-model.number="hLineWidth" class="w-full accent-emerald-500 h-1 bg-slate-800 rounded">
+                                    <span class="text-[10px] font-mono text-slate-400 w-6 text-right">{{ hLineWidth }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Vertical Lines Control -->
+                            <div class="space-y-1.5 bg-slate-900/50 p-2.5 rounded-lg border border-bordercolor">
+                                <div class="flex items-center justify-between">
+                                    <button 
+                                        @click="toggleVlines"
+                                        class="px-2 py-0.5 rounded text-[10px] font-bold border transition"
+                                        :class="showVLines ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-slate-800 text-slate-500 border-slate-700'"
+                                    >
+                                        Vertical (Neon Purple)
+                                    </button>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="range" min="0.5" max="5" step="0.1" v-model.number="vLineWidth" class="w-full accent-purple-500 h-1 bg-slate-800 rounded">
+                                    <span class="text-[10px] font-mono text-slate-400 w-6 text-right">{{ vLineWidth }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid Density & Zoom -->
+                    <div class="bg-darkbg/60 border border-bordercolor p-3.5 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-300">Grid Density & Resolution</span>
+                            <span class="text-xs font-mono text-slate-400">{{ gridDensity }} lines</span>
+                        </div>
+                        <div class="space-y-2">
+                            <input type="range" min="10" max="80" step="2" v-model.number="gridDensity" class="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                            <div class="flex items-center justify-between text-[10px] text-slate-500">
+                                <span>Coarse (Fast)</span>
+                                <span>Dense (High Detail)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- TAB 3: PRESETS -->
+                <div v-show="activeTab === 'presets'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div 
+                        v-for="preset in presetsList" 
+                        :key="preset.id"
+                        @click="loadPreset(preset)"
+                        class="p-3 bg-darkbg/60 border border-bordercolor hover:border-purple-500/50 rounded-xl cursor-pointer transition flex flex-col space-y-1.5 group"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-200 group-hover:text-purple-400 transition">{{ preset.name }}</span>
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-500/60"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-400">{{ preset.desc }}</p>
+                        <span class="text-[10px] font-mono text-purple-400/80 bg-purple-950/40 px-2 py-0.5 rounded w-max border border-purple-900/50">{{ preset.expr }}</span>
+                    </div>
+                </div>
+
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Vue Application Script -->
+    <script>
+        const { createApp, ref, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // UI & Navigation State
+                const activeTab = ref('transforms');
+                const rawExpression = ref('z^2');
+                const currentExpression = ref('z^2');
+                const currentTransformName = ref('Square (z²)');
+                const selectedTransformId = ref('z2');
+                const errorMessage = ref(null);
+
+                // Animation & Playback
+                const isPlaying = ref(true);
+                const time = ref(0);
+                const rawSpeedSlider = ref(0.2); // biased towards slower speeds
+                const speed = computed(() => Math.pow(rawSpeedSlider.value, 2) * 2); // quadratic slow bias
+
+                // Grid and Styling State
+                const gridDensity = ref(30);
+                const showHLines = ref(true);
+                const showVLines = ref(true);
+                const hLineWidth = ref(1.5);
+                const vLineWidth = ref(1.5);
+
+                // Viewport & Interaction State (Single Canvas)
+                const singleCanvas = ref(null);
+                const scale = ref(120); // pixels per unit
+                const centerX = ref(0);
+                const centerY = ref(0);
+                const isDragging = ref(false);
+                const dragStartX = ref(0);
+                const dragStartY = ref(0);
+
+                // Circle Inversion State
+                const sourceCanvas = ref(null);
+                const mappedCanvas = ref(null);
+                const isCircleInversion = ref(false);
+                const circleCenter = ref({ x: 1, y: 0 });
+                const circleRadius = ref(1.2);
+                const isDraggingCircle = ref(false);
+                const circleDragMode = ref('center'); // 'center' or 'edge'
+
+                // Animation Frame Handle
+                let animId = null;
+                let compiledFunc = null;
+
+                // Transforms Catalog
+                const transformsList = [
+                    { id: 'identity', name: 'Identity (z)', symbol: 'z', expr: 'z', icon: 'arrow-right' },
+                    { id: 'z2', name: 'Square (z²)', symbol: 'z²', expr: 'z^2', icon: 'box' },
+                    { id: 'z3', name: 'Cube (z³)', symbol: 'z³', expr: 'z^3', icon: 'box' },
+                    { id: 'exp', name: 'Exponential', symbol: 'eᶻ', expr: 'exp(z)', icon: 'activity' },
+                    { id: 'log', name: 'Natural Log', symbol: 'ln(z)', expr: 'log(z)', icon: 'file-text' },
+                    { id: 'inv', name: 'Reciprocal (1/z)', symbol: '1/z', expr: '1/z', icon: 'repeat' },
+                    { id: 'mobius', name: 'Möbius Transform', symbol: '(z-1)/(z+1)', expr: '(z-1)/(z+1)', icon: 'git-merge' },
+                    { id: 'sin', name: 'Sine Function', symbol: 'sin(z)', expr: 'sin(z)', icon: 'waves' },
+                    { id: 'circle_inv', name: 'Circle Inversion', symbol: '1/z*', expr: 'circle_inversion', icon: 'circle' }
+                ];
+
+                // Presets Catalog
+                const presetsList = [
+                    { id: 'p1', name: 'Conformal Spiral', desc: 'Exponential spiral mapping', expr: 'exp(z) * exp(i * t)' },
+                    { id: 'p2', name: 'Joukowski Airfoil', desc: 'Classic aerodynamic transform z + 1/z', expr: 'z + 1/z' },
+                    { id: 'p3', name: 'Breathe Wave', desc: 'Time-modulated polynomial mapping', expr: 'z^3 - t*z' }
+                ];
+
+                // Compile math expression with math.js safely
+                const compileExpression = (expr) => {
+                    try {
+                        errorMessage.value = null;
+                        if (expr === 'circle_inversion') {
+                            isCircleInversion.value = true;
+                            return (z, t) => z; // handled separately
+                        } else {
+                            isCircleInversion.value = false;
+                        }
+
+                        // Parse with math.js and compile
+                        // We replace 't' with time variable in scope
+                        const parsed = math.parse(expr);
+                        const compiled = parsed.compile();
+                        return (z, t) => {
+                            try {
+                                const scope = { z: math.complex(z.re, z.im), t: t, i: math.i };
+                                const res = compiled.evaluate(scope);
+                                if (res && typeof res.re === 'number' && typeof res.im === 'number') {
+                                    return res;
+                                } else if (typeof res === 'number') {
+                                    return math.complex(res, 0);
+                                }
+                                return math.complex(0, 0);
+                            } catch (e) {
+                                return math.complex(0, 0);
+                            }
+                        };
+                    } catch (err) {
+                        errorMessage.value = `Math Syntax Error: ${err.message}`;
+                        return (z, t) => z;
+                    }
+                };
+
+                const updateExpression = () => {
+                    currentExpression.value = rawExpression.value;
+                    compiledFunc = compileExpression(currentExpression.value);
+                };
+
+                const applyExpression = () => {
+                    updateExpression();
+                };
+
+                const selectTransform = (fn) => {
+                    selectedTransformId.value = fn.id;
+                    currentTransformName.value = fn.name;
+                    rawExpression.value = fn.expr;
+                    updateExpression();
+                };
+
+                const loadPreset = (preset) => {
+                    rawExpression.value = preset.expr;
+                    currentTransformName.value = preset.name;
+                    updateExpression();
+                    activeTab.value = 'transforms';
+                };
+
+                // Mutually Exclusive Line Toggles
+                const toggleHlines = () => {
+                    if (showHLines.value && !showVLines.value) {
+                        // Turning off H when V is already off -> turn V on automatically
+                        showVLines.value = true;
+                    }
+                    showHLines.value = !showHLines.value;
+                };
+
+                const toggleVlines = () => {
+                    if (showVLines.value && !showHLines.value) {
+                        // Turning off V when H is already off -> turn H on automatically
+                        showHLines.value = true;
+                    }
+                    showVLines.value = !showVLines.value;
+                };
+
+                // Playback controls
+                const togglePlay = () => { isPlaying.value = !isPlaying.value; };
+                const resetTime = () => { time.value = 0; };
+                const resetViewport = () => {
+                    scale.value = 120;
+                    centerX.value = 0;
+                    centerY.value = 0;
+                    circleCenter.value = { x: 1, y: 0 };
+                    circleRadius.value = 1.2;
+                };
+
+                // Coordinate Transformations
+                const toScreen = (x, y, width, height) => {
+                    return {
+                        x: width / 2 + (x - centerX.value) * scale.value,
+                        y: height / 2 - (y - centerY.value) * scale.value
+                    };
+                };
+
+                const toMath = (screenX, screenY, width, height) => {
+                    return {
+                        x: centerX.value + (screenX - width / 2) / scale.value,
+                        y: centerY.value + (height / 2 - screenY) / scale.value
+                    };
+                };
+
+                // Main Render Loop
+                const render = () => {
+                    if (isPlaying.value) {
+                        time.value += 0.016 * speed.value;
+                    }
+
+                    if (!isCircleInversion.value) {
+                        renderSingleCanvas();
+                    } else {
+                        renderCircleInversionCanvases();
+                    }
+
+                    animId = requestAnimationFrame(render);
+                };
+
+                // Render Single Canvas (Normal Functions)
+                const renderSingleCanvas = () => {
+                    const canvas = singleCanvas.value;
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+
+                    // Resize canvas properly to display client size
+                    if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                        canvas.width = canvas.clientWidth;
+                        canvas.height = canvas.clientHeight;
+                    }
+
+                    const width = canvas.width;
+                    const height = canvas.height;
+
+                    // Clear background
+                    ctx.fillStyle = '#0a0d14';
+                    ctx.fillRect(0, 0, width, height);
+
+                    // Draw Axes
+                    const origin = toScreen(0, 0, width, height);
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 1;
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, origin.y); ctx.lineTo(width, origin.y);
+                    ctx.moveTo(origin.x, 0); ctx.lineTo(origin.x, height);
+                    ctx.stroke();
+
+                    const N = gridDensity.value;
+                    const xMin = centerX.value - width / (2 * scale.value);
+                    const xMax = centerX.value + width / (2 * scale.value);
+                    const yMin = centerY.value - height / (2 * scale.value);
+                    const yMax = centerY.value + height / (2 * scale.value);
+
+                    const stepX = (xMax - xMin) / N;
+                    const stepY = (yMax - yMin) / N;
+
+                    // Helper to evaluate and map point
+                    const mapPoint = (re, im) => {
+                        const res = compiledFunc({ re, im }, time.value);
+                        return toScreen(res.re, res.im, width, height);
+                    };
+
+                    // Draw Horizontal Grid Lines (Neon Green)
+                    if (showHLines.value) {
+                        ctx.strokeStyle = '#10b981'; // Neon green / emerald
+                        ctx.lineWidth = hLineWidth.value;
+                        ctx.shadowColor = '#10b981';
+                        ctx.shadowBlur = 6;
+
+                        for (let j = 0; j <= N; j++) {
+                            const y = yMin + j * stepY;
+                            ctx.beginPath();
+                            let started = false;
+                            for (let i = 0; i <= N; i++) {
+                                const x = xMin + i * stepX;
+                                const pt = mapPoint(x, y);
+                                if (isNaN(pt.x) || isNaN(pt.y) || !isFinite(pt.x) || !isFinite(pt.y)) {
+                                    started = false;
+                                    continue;
+                                }
+                                if (!started) {
+                                    ctx.moveTo(pt.x, pt.y);
+                                    started = true;
+                                } else {
+                                    ctx.lineTo(pt.x, pt.y);
+                                }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Draw Vertical Grid Lines (Neon Purple)
+                    if (showVLines.value) {
+                        ctx.strokeStyle = '#c084fc'; // Neon purple
+                        ctx.lineWidth = vLineWidth.value;
+                        ctx.shadowColor = '#c084fc';
+                        ctx.shadowBlur = 6;
+
+                        for (let i = 0; i <= N; i++) {
+                            const x = xMin + i * stepX;
+                            ctx.beginPath();
+                            let started = false;
+                            for (let j = 0; j <= N; j++) {
+                                const y = yMin + j * stepY;
+                                const pt = mapPoint(x, y);
+                                if (isNaN(pt.x) || isNaN(pt.y) || !isFinite(pt.x) || !isFinite(pt.y)) {
+                                    started = false;
+                                    continue;
+                                }
+                                if (!started) {
+                                    ctx.moveTo(pt.x, pt.y);
+                                    started = true;
+                                } else {
+                                    ctx.lineTo(pt.x, pt.y);
+                                }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    ctx.shadowBlur = 0; // reset shadow
+                };
+
+                // Render Circle Inversion Side-by-Side Canvases
+                const renderCircleInversionCanvases = () => {
+                    const sCanvas = sourceCanvas.value;
+                    const mCanvas = mappedCanvas.value;
+                    if (!sCanvas || !mCanvas) return;
+
+                    if (sCanvas.width !== sCanvas.clientWidth || sCanvas.height !== sCanvas.clientHeight) {
+                        sCanvas.width = sCanvas.clientWidth;
+                        sCanvas.height = sCanvas.clientHeight;
+                    }
+                    if (mCanvas.width !== mCanvas.clientWidth || mCanvas.height !== mCanvas.clientHeight) {
+                        mCanvas.width = mCanvas.clientWidth;
+                        mCanvas.height = mCanvas.clientHeight;
+                    }
+
+                    const sCtx = sCanvas.getContext('2d');
+                    const mCtx = mCanvas.getContext('2d');
+                    if (!sCtx || !mCtx) return;
+
+                    const sw = sCanvas.width, sh = sCanvas.height;
+                    const mw = mCanvas.width, mh = mCanvas.height;
+
+                    // Clear both
+                    sCtx.fillStyle = '#05070b'; sCtx.fillRect(0, 0, sw, sh);
+                    mCtx.fillStyle = '#05070b'; mCtx.fillRect(0, 0, mw, mh);
+
+                    // Draw Source Grid & Interactive Inversion Circle
+                    const sOrigin = toScreen(0, 0, sw, sh);
+                    sCtx.strokeStyle = '#1e293b'; sCtx.lineWidth = 1;
+                    sCtx.beginPath();
+                    sCtx.moveTo(0, sOrigin.y); sCtx.lineTo(sw, sOrigin.y);
+                    sCtx.moveTo(sOrigin.x, 0); sCtx.lineTo(sOrigin.x, sh);
+                    sCtx.stroke();
+
+                    const N = gridDensity.value;
+                    const xMin = centerX.value - sw / (2 * scale.value);
+                    const xMax = centerX.value + sw / (2 * scale.value);
+                    const yMin = centerY.value - sh / (2 * scale.value);
+                    const yMax = centerY.value + sh / (2 * scale.value);
+                    const stepX = (xMax - xMin) / N;
+                    const stepY = (yMax - yMin) / N;
+
+                    // Inversion formula relative to circle: w = c + r^2 * (z - c)* / |z - c|^2
+                    const invertPoint = (z) => {
+                        const cx = circleCenter.value.x;
+                        const cy = circleCenter.value.y;
+                        const r = circleRadius.value;
+                        const dx = z.re - cx;
+                        const dy = z.im - cy;
+                        const distSq = dx * dx + dy * dy;
+                        if (distSq < 1e-6) return { re: cx, im: cy };
+                        const factor = (r * r) / distSq;
+                        return {
+                            re: cx + dx * factor,
+                            im: cy + dy * factor
+                        };
+                    };
+
+                    // Draw grid on source and mapped domains
+                    // Source grid
+                    if (showHLines.value) {
+                        sCtx.strokeStyle = '#10b981'; sCtx.lineWidth = hLineWidth.value;
+                        for (let j = 0; j <= N; j++) {
+                            const y = yMin + j * stepY;
+                            sCtx.beginPath();
+                            let started = false;
+                            for (let i = 0; i <= N; i++) {
+                                const x = xMin + i * stepX;
+                                const pt = toScreen(x, y, sw, sh);
+                                if (!started) { sCtx.moveTo(pt.x, pt.y); started = true; }
+                                else { sCtx.lineTo(pt.x, pt.y); }
+                            }
+                            sCtx.stroke();
+                        }
+                    }
+
+                    // Mapped grid (Circle inversion)
+                    if (showHLines.value) {
+                        mCtx.strokeStyle = '#10b981'; mCtx.lineWidth = hLineWidth.value;
+                        for (let j = 0; j <= N; j++) {
+                            const y = yMin + j * stepY;
+                            mCtx.beginPath();
+                            let started = false;
+                            for (let i = 0; i <= N; i++) {
+                                const x = xMin + i * stepX;
+                                const inv = invertPoint({ re: x, im: y });
+                                const pt = toScreen(inv.re, inv.im, mw, mh);
+                                if (isNaN(pt.x) || isNaN(pt.y)) { started = false; continue; }
+                                if (!started) { mCtx.moveTo(pt.x, pt.y); started = true; }
+                                else { mCtx.lineTo(pt.x, pt.y); }
+                            }
+                            mCtx.stroke();
+                        }
+                    }
+
+                    if (showVLines.value) {
+                        mCtx.strokeStyle = '#c084fc'; mCtx.lineWidth = vLineWidth.value;
+                        for (let i = 0; i <= N; i++) {
+                            const x = xMin + i * stepX;
+                            mCtx.beginPath();
+                            let started = false;
+                            for (let j = 0; j <= N; j++) {
+                                const y = yMin + j * stepY;
+                                const inv = invertPoint({ re: x, im: y });
+                                const pt = toScreen(inv.re, inv.im, mw, mh);
+                                if (isNaN(pt.x) || isNaN(pt.y)) { started = false; continue; }
+                                if (!started) { mCtx.moveTo(pt.x, pt.y); started = true; }
+                                else { mCtx.lineTo(pt.x, pt.y); }
+                            }
+                            mCtx.stroke();
+                        }
+                    }
+
+                    // Draw interactive inversion circle on source canvas
+                    const cScreen = toScreen(circleCenter.value.x, circleCenter.value.y, sw, sh);
+                    const rScreen = circleRadius.value * scale.value;
+                    sCtx.strokeStyle = '#f59e0b';
+                    sCtx.lineWidth = 2;
+                    sCtx.beginPath();
+                    sCtx.arc(cScreen.x, cScreen.y, rScreen, 0, Math.PI * 2);
+                    sCtx.stroke();
+                    sCtx.fillStyle = 'rgba(245, 158, 11, 0.1)';
+                    sCtx.fill();
+
+                    // Center handle
+                    sCtx.fillStyle = '#f59e0b';
+                    sCtx.beginPath();
+                    sCtx.arc(cScreen.x, cScreen.y, 5, 0, Math.PI * 2);
+                    sCtx.fill();
+                };
+
+                // Mouse & Touch Pan / Zoom Handlers for Single Canvas
+                const onMouseDown = (e) => {
+                    isDragging.value = true;
+                    dragStartX.value = e.clientX;
+                    dragStartY.value = e.clientY;
+                };
+
+                const onMouseMove = (e) => {
+                    if (!isDragging.value) return;
+                    const dx = e.clientX - dragStartX.value;
+                    const dy = e.clientY - dragStartY.value;
+                    dragStartX.value = e.clientX;
+                    dragStartY.value = e.clientY;
+
+                    centerX.value -= dx / scale.value;
+                    centerY.value += dy / scale.value;
+                };
+
+                const onMouseUp = () => { isDragging.value = false; };
+
+                const onWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                    scale.value = Math.max(20, Math.min(1000, scale.value * zoomFactor));
+                };
+
+                // Touch support for mobile devices
+                let touchStartX = 0, touchStartY = 0;
+                const onTouchStart = (e) => {
+                    if (e.touches.length === 1) {
+                        isDragging.value = true;
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                    }
+                };
+                const onTouchMove = (e) => {
+                    if (!isDragging.value || e.touches.length !== 1) return;
+                    const dx = e.touches[0].clientX - touchStartX;
+                    const dy = e.touches[0].clientY - touchStartY;
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+
+                    centerX.value -= dx / scale.value;
+                    centerY.value += dy / scale.value;
+                };
+                const onTouchEnd = () => { isDragging.value = false; };
+
+                // Source Circle Inversion Interaction
+                const onSourceMouseDown = (e) => {
+                    const canvas = sourceCanvas.value;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    const mathPos = toMath(mouseX, mouseY, canvas.width, canvas.height);
+                    const distToCenter = Math.hypot(mathPos.x - circleCenter.value.x, mathPos.y - circleCenter.value.y);
+
+                    if (Math.abs(distToCenter - circleRadius.value) < 0.2) {
+                        isDraggingCircle.value = true;
+                        circleDragMode.value = 'edge';
+                    } else if (distToCenter < circleRadius.value) {
+                        isDraggingCircle.value = true;
+                        circleDragMode.value = 'center';
+                    } else {
+                        // Start normal panning
+                        onMouseDown(e);
+                    }
+                };
+
+                const onSourceMouseMove = (e) => {
+                    if (!isDraggingCircle.value) {
+                        if (isDragging.value) onMouseMove(e);
+                        return;
+                    }
+                    const canvas = sourceCanvas.value;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mathPos = toMath(e.clientX - rect.left, e.clientY - rect.top, canvas.width, canvas.height);
+
+                    if (circleDragMode.value === 'center') {
+                        circleCenter.value = { x: mathPos.x, y: mathPos.y };
+                    } else if (circleDragMode.value === 'edge') {
+                        const dist = Math.hypot(mathPos.x - circleCenter.value.x, mathPos.y - circleCenter.value.y);
+                        circleRadius.value = Math.max(0.2, dist);
+                    }
+                };
+
+                const onSourceMouseUp = () => {
+                    isDraggingCircle.value = false;
+                    isDragging.value = false;
+                };
+
+                // Lifecycle hooks
+                onMounted(() => {
+                    updateExpression();
+                    animId = requestAnimationFrame(render);
+                    nextTick(() => {
+                        if (window.lucide) lucide.createIcons();
+                    });
+                });
+
+                onUnmounted(() => {
+                    if (animId) cancelAnimationFrame(animId);
+                });
+
+                return {
+                    activeTab,
+                    tabs: [
+                        { id: 'transforms', name: 'Transforms', icon: 'compass' },
+                        { id: 'animation', name: 'Animation & Grid', icon: 'sliders' },
+                        { id: 'presets', name: 'Presets', icon: 'sparkles' }
+                    ],
+                    rawExpression,
+                    currentTransformName,
+                    selectedTransformId,
+                    errorMessage,
+                    isPlaying,
+                    time,
+                    rawSpeedSlider,
+                    speed,
+                    gridDensity,
+                    showHLines,
+                    showVLines,
+                    hLineWidth,
+                    vLineWidth,
+                    singleCanvas,
+                    sourceCanvas,
+                    mappedCanvas,
+                    isCircleInversion,
+                    transformsList,
+                    presetsList,
+                    updateExpression,
+                    applyExpression,
+                    selectTransform,
+                    loadPreset,
+                    toggleHlines,
+                    toggleVlines,
+                    togglePlay,
+                    resetTime,
+                    resetViewport,
+                    onMouseDown,
+                    onMouseMove,
+                    onMouseUp,
+                    onWheel,
+                    onTouchStart,
+                    onTouchMove,
+                    onTouchEnd,
+                    onSourceMouseDown,
+                    onSourceMouseMove,
+                    onSourceMouseUp
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

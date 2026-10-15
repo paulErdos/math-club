@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orthogonal Logarithmic Spirals</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+
+    <div id="app" v-cloak class="h-full flex flex-col">
+        <!-- Top Navbar -->
+        <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md z-20">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-spiral text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Orthogonal Logarithmic Spirals</h1>
+                    <p class="text-xs text-slate-400">
+                        <span class="text-[#00ff66] font-semibold">Spiral Family A (Green)</span> & 
+                        <span class="text-[#cc00ff] font-semibold">Spiral Family B (Purple)</span>
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button @click="centerViewport" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-crosshairs"></i>
+                    <span>Center Viewport</span>
+                </button>
+                <button @click="resetZoom" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-expand"></i>
+                    <span>Reset Zoom</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+            
+            <!-- Left Side: Controls -->
+            <aside class="w-full lg:w-80 bg-slate-900/90 border-r border-slate-800 flex flex-col p-4 overflow-y-auto shrink-0 space-y-4 z-10 shadow-xl">
+                
+                <!-- Spiral Pitch / Angle Parameter -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                        <span>Spiral Angle Parameter (k)</span>
+                        <span class="font-mono text-purple-300">{{ spiralK.toFixed(2) }}</span>
+                    </div>
+                    <input type="range" min="0.2" max="2.0" step="0.05" v-model.number="spiralK" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    <p class="text-[11px] text-slate-500">Controls the pitch and winding tightness of both orthogonal spiral families.</p>
+                </div>
+
+                <!-- Resolution / Density -->
+                <div class="space-y-1.5 pt-2 border-t border-slate-800">
+                    <div class="flex justify-between text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                        <span>Spiral Arm Density</span>
+                        <span class="font-mono text-purple-300">{{ spiralCount }} arms</span>
+                    </div>
+                    <input type="range" min="10" max="60" step="5" v-model.number="spiralCount" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                </div>
+
+                <!-- Line Width & Visibility -->
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Display Options</label>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button @click="showFamilyA = !showFamilyA; render()" :class="['px-2.5 py-1 rounded-lg text-xs font-medium border transition flex items-center space-x-1.5', showFamilyA ? 'bg-emerald-950/50 border-emerald-500/60 text-emerald-300' : 'bg-slate-800/40 border-slate-700 text-slate-500']">
+                            <span class="w-2 h-2 rounded-full bg-[#00ff66]"></span>
+                            <span>Family A</span>
+                        </button>
+                        <button @click="showFamilyB = !showFamilyB; render()" :class="['px-2.5 py-1 rounded-lg text-xs font-medium border transition flex items-center space-x-1.5', showFamilyB ? 'bg-purple-950/50 border-purple-500/60 text-purple-300' : 'bg-slate-800/40 border-slate-700 text-slate-500']">
+                            <span class="w-2 h-2 rounded-full bg-[#cc00ff]"></span>
+                            <span>Family B</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Line Width</span>
+                            <span class="font-mono text-slate-200">{{ lineWidth.toFixed(1) }}px</span>
+                        </div>
+                        <input type="range" min="0.5" max="4.0" step="0.5" v-model.number="lineWidth" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Intersection Dot Radius</span>
+                            <span class="font-mono text-slate-200">{{ dotRadius }}px</span>
+                        </div>
+                        <input type="range" min="0.0" max="4.0" step="0.5" v-model.number="dotRadius" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- Right Side: Canvas Viewport -->
+            <main class="flex-1 bg-slate-950 p-3 overflow-hidden flex flex-col gap-3 min-h-0">
+                <div class="flex-1 flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative h-full w-full">
+                    <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Pure Orthogonal Logarithmic Spirals</h2>
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-400">
+                            Intersects everywhere at exactly 90°
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="canvasContainer">
+                        <canvas ref="spiralCanvas" @mousedown="onMouseDown" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp" @wheel.prevent="onWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono px-2.5 py-1.5 rounded-lg text-slate-400 pointer-events-none shadow-md z-10">
+                            <div>Pan: Click & Drag | Zoom: Scroll Wheel</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, onUnmounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const spiralK = ref(0.8);
+                const spiralCount = ref(24);
+                const showFamilyA = ref(true);
+                const showFamilyB = ref(true);
+                const lineWidth = ref(1.5);
+                const dotRadius = ref(1.5);
+
+                const spiralCanvas = ref(null);
+                let ctx = null;
+
+                const view = reactive({ centerX: 0, centerY: 0, scale: 1 });
+                let isDragging = false;
+                let startDragX = 0;
+                let startDragY = 0;
+
+                const centerViewport = () => {
+                    view.centerX = 0;
+                    view.centerY = 0;
+                    render();
+                };
+
+                const resetZoom = () => {
+                    view.centerX = 0;
+                    view.centerY = 0;
+                    view.scale = 1;
+                    render();
+                };
+
+                const render = () => {
+                    nextTick(() => {
+                        if (!spiralCanvas.value) return;
+                        const canvas = spiralCanvas.value;
+                        const width = canvas.clientWidth;
+                        const height = canvas.clientHeight;
+                        if (canvas.width !== width || canvas.height !== height) {
+                            canvas.width = width;
+                            canvas.height = height;
+                        }
+                        if (!ctx) ctx = canvas.getContext('2d');
+
+                        ctx.clearRect(0, 0, width, height);
+                        if (width === 0 || height === 0) return;
+
+                        const scale = (height / 10.0) * view.scale;
+                        const toPixel = (x, y) => ({
+                            px: width / 2 + (x - view.centerX) * scale,
+                            py: height / 2 - (y - view.centerY) * scale
+                        });
+
+                        // Draw coordinate axes
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#1e293b';
+                        const startX = view.centerX - (width / 2) / scale;
+                        const endX = view.centerX + (width / 2) / scale;
+                        const startY = view.centerY - (height / 2) / scale;
+                        const endY = view.centerY + (height / 2) / scale;
+
+                        for (let x = Math.floor(startX); x <= Math.ceil(endX); x++) {
+                            const p1 = toPixel(x, startY);
+                            const p2 = toPixel(x, endY);
+                            ctx.beginPath(); ctx.moveTo(p1.px, 0); ctx.lineTo(p2.px, height); ctx.stroke();
+                        }
+                        for (let y = Math.floor(startY); y <= Math.ceil(endY); y++) {
+                            const p1 = toPixel(startX, y);
+                            const p2 = toPixel(endX, y);
+                            ctx.beginPath(); ctx.moveTo(0, p1.py); ctx.lineTo(width, p2.py); ctx.stroke();
+                        }
+
+                        const origin = toPixel(0, 0);
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeStyle = '#334155';
+                        ctx.beginPath(); ctx.moveTo(0, origin.py); ctx.lineTo(width, origin.py); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(origin.px, 0); ctx.lineTo(origin.px, height); ctx.stroke();
+
+                        const k = spiralK.value;
+                        const count = spiralCount.value;
+                        const tMin = -10;
+                        const tMax = 10;
+                        const steps = 300;
+                        const dt = (tMax - tMin) / steps;
+
+                        // Helper to generate points for a logarithmic spiral curve
+                        // Family A: r = exp(k * (t + c))
+                        const getSpiralPointA = (t, c) => {
+                            const r = Math.exp(k * (t + c));
+                            return { x: r * Math.cos(t), y: r * Math.sin(t) };
+                        };
+
+                        // Family B (Orthogonal counter-rotating partner):
+                        const getSpiralPointB = (t, c) => {
+                            const r = Math.exp(k * (t + c));
+                            return { x: r * Math.cos(-t), y: r * Math.sin(-t) };
+                        };
+
+                        // Draw Family A (Green)
+                        if (showFamilyA.value) {
+                            ctx.lineWidth = lineWidth.value;
+                            ctx.strokeStyle = '#00ff66';
+                            for (let i = 0; i < count; i++) {
+                                const c = (i / count) * 2 * Math.PI * 2 - 2 * Math.PI;
+                                ctx.beginPath();
+                                let started = false;
+                                for (let s = 0; s <= steps; s++) {
+                                    const t = tMin + s * dt;
+                                    const pt = getSpiralPointA(t, c);
+                                    if (!isFinite(pt.x) || !isFinite(pt.y) || Math.abs(pt.x) > 50 || Math.abs(pt.y) > 50) {
+                                        started = false;
+                                        continue;
+                                    }
+                                    const px = toPixel(pt.x, pt.y);
+                                    if (!started) {
+                                        ctx.moveTo(px.px, px.py);
+                                        started = true;
+                                    } else {
+                                        ctx.lineTo(px.px, px.py);
+                                    }
+                                }
+                                ctx.stroke();
+                            }
+                        }
+
+                        // Draw Family B (Purple)
+                        if (showFamilyB.value) {
+                            ctx.lineWidth = lineWidth.value;
+                            ctx.strokeStyle = '#cc00ff';
+                            for (let i = 0; i < count; i++) {
+                                const c = (i / count) * 2 * Math.PI * 2 - 2 * Math.PI;
+                                ctx.beginPath();
+                                let started = false;
+                                for (let s = 0; s <= steps; s++) {
+                                    const t = tMin + s * dt;
+                                    const pt = getSpiralPointB(t, c);
+                                    if (!isFinite(pt.x) || !isFinite(pt.y) || Math.abs(pt.x) > 50 || Math.abs(pt.y) > 50) {
+                                        started = false;
+                                        continue;
+                                    }
+                                    const px = toPixel(pt.x, pt.y);
+                                    if (!started) {
+                                        ctx.moveTo(px.px, px.py);
+                                        started = true;
+                                    } else {
+                                        ctx.lineTo(px.px, px.py);
+                                    }
+                                }
+                                ctx.stroke();
+                            }
+                        }
+
+                        // Draw intersection dots if enabled
+                        if (dotRadius.value > 0) {
+                            ctx.fillStyle = '#ffffff';
+                            for (let i = 0; i < count; i += 2) {
+                                for (let j = 0; j < count; j += 2) {
+                                    const ca = (i / count) * 2 * Math.PI * 2 - 2 * Math.PI;
+                                    const cb = (j / count) * 2 * Math.PI * 2 - 2 * Math.PI;
+                                    // Intersection condition for these specific logarithmic spiral families:
+                                    // t = (cb - ca) / 2
+                                    const t = (cb - ca) / 2;
+                                    if (t >= tMin && t <= tMax) {
+                                        const pt = getSpiralPointA(t, ca);
+                                        if (Math.abs(pt.x) < 25 && Math.abs(pt.y) < 25) {
+                                            const px = toPixel(pt.x, pt.y);
+                                            ctx.beginPath();
+                                            ctx.arc(px.px, px.py, dotRadius.value, 0, 2 * Math.PI);
+                                            ctx.fill();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                };
+
+                const onMouseDown = (e) => {
+                    isDragging = true;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                };
+
+                const onMouseMove = (e) => {
+                    if (!isDragging) return;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+
+                    const canvas = spiralCanvas.value;
+                    if (!canvas) return;
+                    const scale = (canvas.height / 10.0) * view.scale;
+                    view.centerX -= dx / scale;
+                    view.centerY += dy / scale;
+                    render();
+                };
+
+                const onMouseUp = () => { isDragging = false; };
+                const onWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.06 : 0.94;
+                    view.scale = Math.max(0.2, Math.min(20, view.scale * zoomFactor));
+                    render();
+                };
+
+                onMounted(() => {
+                    render();
+                    window.addEventListener('resize', render);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('resize', render);
+                });
+
+                return {
+                    spiralK,
+                    spiralCount,
+                    showFamilyA,
+                    showFamilyB,
+                    lineWidth,
+                    dotRadius,
+                    spiralCanvas,
+                    centerViewport,
+                    resetZoom,
+                    onMouseDown,
+                    onMouseMove,
+                    onMouseUp,
+                    onWheel,
+                    render
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

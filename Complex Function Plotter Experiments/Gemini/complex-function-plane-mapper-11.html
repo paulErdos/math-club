@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Function Plane Mapper</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Math.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+
+    <div id="app" v-cloak class="h-full flex flex-col">
+        <!-- Top Navbar -->
+        <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md z-20">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-atom text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Complex Plane Mapper</h1>
+                    <p class="text-xs text-slate-400">
+                        <span class="text-[#00ff66] font-semibold">Horizontal lines (Green)</span> & 
+                        <span class="text-[#cc00ff] font-semibold">Vertical lines (Purple)</span>
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button @click="centerViewport" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-crosshairs"></i>
+                    <span>Center Viewport</span>
+                </button>
+                <button @click="resetZoom" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-expand"></i>
+                    <span>Reset Zoom</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+            
+            <!-- Left Side: Control Panel & Presets -->
+            <aside class="w-full lg:w-80 bg-slate-900/90 border-r border-slate-800 flex flex-col p-4 overflow-y-auto shrink-0 space-y-4 z-10 shadow-xl">
+                
+                <!-- Function Expression Input -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Complex Function f(z)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-purple-400 font-mono text-sm font-bold">f(z) =</span>
+                        <input 
+                            type="text" 
+                            v-model="expressionInput" 
+                            @keyup.enter="applyFunction"
+                            placeholder="e.g. exp(z), z^2, 1/z" 
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-16 pr-10 py-2 text-sm font-mono text-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-inner">
+                        <button @click="applyFunction" title="Evaluate & Animate" class="absolute inset-y-1 right-1 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                    </div>
+                    <div v-if="parseError" class="text-xs text-rose-400 bg-rose-950/40 border border-rose-900/50 p-2 rounded-lg font-mono">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ parseError }}
+                    </div>
+                </div>
+
+                <!-- Built-in Presets -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Preset Transformations</label>
+                    <div class="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto pr-1">
+                        <button v-for="preset in presets" :key="preset.name" @click="selectPreset(preset)" 
+                            :class="['w-full text-left px-2.5 py-1.5 rounded-lg border transition flex items-center justify-between group', currentPresetName === preset.name ? 'bg-purple-950/40 border-purple-500/60 text-white' : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/60 text-slate-300']">
+                            <div>
+                                <div class="text-[11px] font-medium group-hover:text-purple-300">{{ preset.label }}</div>
+                                <div class="text-[10px] font-mono text-slate-400">{{ preset.expr }}</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-purple-400 transition"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Circle Inversion Helper Callout -->
+                <div v-if="isCircleInversionMode" class="p-3 bg-purple-950/30 border border-purple-900/50 rounded-xl space-y-1.5 text-xs text-purple-200">
+                    <div class="font-bold flex items-center space-x-1.5">
+                        <i class="fa-solid fa-circle-dot text-purple-400"></i>
+                        <span>Circle Inversion Active</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300">Drag the purple center handle on the left domain canvas or adjust radius below to morph inversion geometry!</p>
+                    <div class="space-y-1 pt-1">
+                        <div class="flex justify-between text-[10px] text-slate-400">
+                            <span>Inversion Radius R</span>
+                            <span class="font-mono text-purple-300">{{ inversionRadius.toFixed(2) }}</span>
+                        </div>
+                        <input type="range" min="0.5" max="4.0" step="0.1" v-model.number="inversionRadius" @input="updateLatticeTargets" class="w-full accent-purple-500 bg-slate-800 h-1 rounded-lg">
+                    </div>
+                </div>
+
+                <!-- Animation & Playback Controls -->
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Animation & Playback</label>
+                    
+                    <!-- Scrubbing Timeline -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Timeline Progress</span>
+                            <span class="font-mono text-purple-300">{{ Math.round(animProgress * 100) }}%</span>
+                        </div>
+                        <input type="range" min="0" max="1" step="0.005" v-model.number="animProgress" @input="onTimelineScrub" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer">
+                    </div>
+
+                    <!-- Play/Pause & Restart Toolbar -->
+                    <div class="flex items-center space-x-2">
+                        <button @click="togglePlayPause" class="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-600/20 transition flex items-center justify-center space-x-2">
+                            <i :class="isPlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play'"></i>
+                            <span>{{ isPlaying ? 'Pause' : 'Play Animation' }}</span>
+                        </button>
+                        <button @click="restartAnimation" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition" title="Restart from Beginning">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </div>
+
+                    <!-- Speed Control Slider (0.05x to 0.2x) -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Animation Speed</span>
+                            <span class="font-mono text-slate-200">{{ animSpeed.toFixed(2) }}x</span>
+                        </div>
+                        <input type="range" min="0.05" max="0.2" step="0.01" v-model.number="animSpeed" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+                </div>
+
+                <!-- Grid & Lattice Parameters -->
+                <div class="space-y-2.5 pt-2 border-t border-slate-800">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Lattice Settings</label>
+                    
+                    <!-- Line Toggle Chips -->
+                    <div class="space-y-1.5">
+                        <div class="text-[11px] text-slate-400">Line Visibility Toggles</div>
+                        <div class="flex items-center space-x-2">
+                            <button @click="toggleHorizontal" :class="['px-2.5 py-1 rounded-lg text-xs font-medium border transition flex items-center space-x-1.5', showHorizontal ? 'bg-emerald-950/50 border-emerald-500/60 text-emerald-300' : 'bg-slate-800/40 border-slate-700 text-slate-500']">
+                                <span class="w-2 h-2 rounded-full bg-[#00ff66]"></span>
+                                <span>Horizontal</span>
+                            </button>
+                            <button @click="toggleVertical" :class="['px-2.5 py-1 rounded-lg text-xs font-medium border transition flex items-center space-x-1.5', showVertical ? 'bg-purple-950/50 border-purple-500/60 text-purple-300' : 'bg-slate-800/40 border-slate-700 text-slate-500']">
+                                <span class="w-2 h-2 rounded-full bg-[#cc00ff]"></span>
+                                <span>Vertical</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Independent Line Width Sliders -->
+                    <div class="space-y-2 pt-1">
+                        <div class="space-y-1" v-if="showHorizontal">
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>Horizontal Line Width</span>
+                                <span class="font-mono text-slate-200">{{ horizontalLineWidth.toFixed(1) }}px</span>
+                            </div>
+                            <input type="range" min="0.5" max="5.0" step="0.5" v-model.number="horizontalLineWidth" @input="render" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg">
+                        </div>
+
+                        <div class="space-y-1" v-if="showVertical">
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>Vertical Line Width</span>
+                                <span class="font-mono text-slate-200">{{ verticalLineWidth.toFixed(1) }}px</span>
+                            </div>
+                            <input type="range" min="0.5" max="5.0" step="0.5" v-model.number="verticalLineWidth" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1 pt-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Lattice Density (Resolution)</span>
+                            <span class="font-mono text-slate-200">{{ latticeResolution }} x {{ latticeResolution }}</span>
+                        </div>
+                        <input type="range" min="15" max="120" step="5" v-model.number="latticeResolution" @change="rebuildLattice" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <!-- Dot Density Step Slider -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Dot Density Step</span>
+                            <span class="font-mono text-slate-200">Every {{ dotStep }} node(s)</span>
+                        </div>
+                        <input type="range" min="1" max="5" step="1" v-model.number="dotStep" @input="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Dot Radius</span>
+                            <span class="font-mono text-slate-200">{{ dotRadius }}px</span>
+                        </div>
+                        <input type="range" min="1.0" max="5.0" step="0.5" v-model.number="dotRadius" @change="render" class="w-full accent-purple-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- Right Side: Dynamic Canvases -->
+            <main class="flex-1 bg-slate-950 p-3 overflow-hidden flex flex-col lg:flex-row gap-3 min-h-0">
+                
+                <!-- Standard Fullscreen Animating Viewport -->
+                <div v-if="!isCircleInversionMode" class="flex-1 flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative h-full">
+                    <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-purple-500 inline-block shadow-sm shadow-purple-500/50"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Plane Transformation: w = f(z)</h2>
+                        </div>
+                        <div class="flex items-center space-x-3 text-[11px] font-mono">
+                            <span class="text-[#00ff66] flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-[#00ff66] inline-block"></span><span>Horizontal (y = const)</span></span>
+                            <span class="text-[#cc00ff] flex items-center space-x-1"><span class="w-2 h-2 rounded-full bg-[#cc00ff] inline-block"></span><span>Vertical (x = const)</span></span>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="singleContainer">
+                        <canvas ref="singleCanvas" @mousedown="onSingleMouseDown" @mousemove="onSingleMouseMove" @mouseup="onSingleMouseUp" @mouseleave="onSingleMouseUp" @wheel.prevent="onSingleWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono px-2.5 py-1.5 rounded-lg text-slate-400 pointer-events-none space-y-0.5 shadow-md z-10">
+                            <div>Pan: Click & Drag | Zoom: Scroll Wheel</div>
+                            <div v-if="hoveredZ">z = {{ formatComplex(hoveredZ) }} → f(z) = {{ formatComplex(hoveredW) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Side-by-Side Viewport specifically for Circle Inversion -->
+                <template v-else>
+                    <!-- Domain Source Plane -->
+                    <div class="flex-1 flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl relative h-full">
+                        <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Domain (z) - Drag Center Circle</h2>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded">Source & Inversion Circle</span>
+                        </div>
+                        <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="domainContainer">
+                            <canvas ref="domainCanvas" @mousedown="onDomainMouseDown" @mousemove="onDomainMouseMove" @mouseup="onDomainMouseUp" @mouseleave="onDomainMouseUp" @wheel.prevent="onDomainWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                            <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono px-2.5 py-1.5 rounded-lg text-slate-400 pointer-events-none shadow-md z-10">
+                                <div>Drag Center Handle to move Inversion Circle</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Codomain Plane -->
+                    <div class="flex-1 flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl relative h-full">
+                        <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-purple-500 inline-block"></span>
+                                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Codomain (w = f(z))</h2>
+                            </div>
+                            <span class="text-[11px] font-mono text-purple-400 bg-purple-950/60 border border-purple-900/50 px-2 py-0.5 rounded">Inverted Plane</span>
+                        </div>
+                        <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="targetContainer">
+                            <canvas ref="targetCanvas" @mousedown="onTargetMouseDown" @mousemove="onTargetMouseMove" @mouseup="onTargetMouseUp" @mouseleave="onTargetMouseUp" @wheel.prevent="onTargetWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                        </div>
+                    </div>
+                </template>
+
+            </main>
+        </main>
+
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, onUnmounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const expressionInput = ref('exp(z)');
+                const currentPresetName = ref('exp');
+                const compiledFunc = ref(null);
+                const parseError = ref(null);
+                const animProgress = ref(1.0);
+                const isPlaying = ref(false);
+                const animSpeed = ref(0.08);
+                const isCircleInversionMode = ref(false);
+
+                const latticeResolution = ref(40);
+                const dotRadius = ref(2.0);
+                const dotStep = ref(1);
+
+                const showHorizontal = ref(true);
+                const showVertical = ref(true);
+                const horizontalLineWidth = ref(1.5);
+                const verticalLineWidth = ref(1.5);
+
+                const toggleHorizontal = () => {
+                    if (showHorizontal.value && !showVertical.value) {
+                        showVertical.value = true;
+                        showHorizontal.value = false;
+                    } else if (showHorizontal.value && showVertical.value) {
+                        showHorizontal.value = false;
+                    } else {
+                        showHorizontal.value = true;
+                    }
+                    render();
+                };
+
+                const toggleVertical = () => {
+                    if (showVertical.value && !showHorizontal.value) {
+                        showHorizontal.value = true;
+                        showVertical.value = false;
+                    } else if (showVertical.value && showHorizontal.value) {
+                        showVertical.value = false;
+                    } else {
+                        showVertical.value = true;
+                    }
+                    render();
+                };
+
+                const inversionRadius = ref(1.5);
+                const circleCenter = reactive({ x: 0, y: 0 });
+                let isDraggingCircleCenter = false;
+
+                const hoveredZ = ref(null);
+                const hoveredW = ref(null);
+
+                const singleCanvas = ref(null);
+                const domainCanvas = ref(null);
+                const targetCanvas = ref(null);
+                
+                let singleCtx = null;
+                let domainCtx = null;
+                let targetCtx = null;
+
+                const singleView = reactive({ centerX: 0, centerY: 0, scale: 1 });
+                const domainView = reactive({ centerX: 0, centerY: 0, scale: 1 });
+                const targetView = reactive({ centerX: 0, centerY: 0, scale: 1 });
+
+                let isDragging = false;
+                let startDragX = 0;
+                let startDragY = 0;
+
+                let latticeGrid = []; 
+
+                const presets = [
+                    { name: 'exp', label: 'Exponential e^z', expr: 'exp(z)' },
+                    { name: 'square', label: 'Quadratic z^2', expr: 'z^2' },
+                    { name: 'cubic', label: 'Cubic z^3 - 1', expr: 'z^3 - 1' },
+                    { name: 'inv', label: 'Reciprocal 1/z', expr: '1/z' },
+                    { name: 'log', label: 'Natural Log log(z)', expr: 'log(z)' },
+                    { name: 'joukowski', label: 'Joukowski Airfoil z + 1/z', expr: 'z + 1/z' },
+                    { name: 'sqrt', label: 'Square Root sqrt(z)', expr: 'sqrt(z)' },
+                    { name: 'power', label: 'Rational Power z^(3/2)', expr: 'z^(3/2)' },
+                    { name: 'chebyshev', label: 'Chebyshev T3 (4z^3 - 3z)', expr: '4*z^3 - 3*z' },
+                    { name: 'circle_inv', label: 'Circle Inversion', expr: 'circle_inv' },
+                    { name: 'mobius', label: 'Möbius (2z+1)/(z+2)', expr: '(2*z + 1) / (z + 2)' },
+                    { name: 'translation', label: 'Translation z + 2 + i', expr: 'z + 2 + 1i' },
+                    { name: 'rotation', label: 'Rotation z * e^(iπ/4)', expr: 'z * exp(i * pi / 4)' },
+                    { name: 'reflection', label: 'Reflection conj(z)', expr: 'conj(z)' }
+                ];
+
+                const applyFunction = () => {
+                    parseError.value = null;
+                    isCircleInversionMode.value = (expressionInput.value.trim() === 'circle_inv');
+
+                    if (!isCircleInversionMode.value) {
+                        try {
+                            const code = math.compile(expressionInput.value);
+                            const testRes = code.evaluate({ z: math.complex(1, 1) });
+                            if (testRes === undefined) throw new Error("Invalid evaluation result.");
+                            compiledFunc.value = code;
+                        } catch (err) {
+                            parseError.value = err.message || "Failed to parse expression";
+                            console.error(err);
+                            return;
+                        }
+                    }
+
+                    updateLatticeTargets();
+                    startAnimation();
+                    nextTick(() => {
+                        singleCtx = null;
+                        domainCtx = null;
+                        targetCtx = null;
+                        render();
+                    });
+                };
+
+                const selectPreset = (preset) => {
+                    expressionInput.value = preset.expr;
+                    currentPresetName.value = preset.name;
+                    applyFunction();
+                };
+
+                const rebuildLattice = () => {
+                    latticeGrid = [];
+                    const res = latticeResolution.value;
+                    const span = 4.0;
+                    const step = (span * 2) / res;
+
+                    for (let i = 0; i <= res; i++) {
+                        const row = [];
+                        const y = span - i * step; 
+                        for (let j = 0; j <= res; j++) {
+                            const x = -span + j * step; 
+                            row.push({
+                                x: x,
+                                y: y,
+                                targetX: x,
+                                targetY: y,
+                                valid: true
+                            });
+                        }
+                        latticeGrid.push(row);
+                    }
+                    updateLatticeTargets();
+                    render();
+                };
+
+                const updateLatticeTargets = () => {
+                    const isCircleInv = isCircleInversionMode.value;
+                    const R = inversionRadius.value;
+                    const cx = circleCenter.x;
+                    const cy = circleCenter.y;
+
+                    for (let row of latticeGrid) {
+                        for (let p of row) {
+                            try {
+                                let rx, ry;
+                                if (isCircleInv) {
+                                    const dx = p.x - cx;
+                                    const dy = p.y - cy;
+                                    const denom = dx * dx + dy * dy;
+                                    if (denom < 1e-6) {
+                                        p.valid = false;
+                                        continue;
+                                    }
+                                    const factor = (R * R) / denom;
+                                    rx = cx + dx * factor;
+                                    ry = cy - dy * factor; 
+                                } else {
+                                    if (!compiledFunc.value) continue;
+                                    const zVal = math.complex(p.x, p.y);
+                                    const res = compiledFunc.value.evaluate({ z: zVal });
+                                    
+                                    if (res && typeof res.re === 'number' && typeof res.im === 'number') {
+                                        rx = res.re;
+                                        ry = res.im;
+                                    } else if (typeof res === 'number') {
+                                        rx = res;
+                                        ry = 0;
+                                    } else {
+                                        p.valid = false;
+                                        continue;
+                                    }
+                                }
+
+                                if (!isFinite(rx) || !isFinite(ry)) {
+                                    p.valid = false;
+                                } else {
+                                    p.targetX = rx;
+                                    p.targetY = ry;
+                                    p.valid = true;
+                                }
+                            } catch (e) {
+                                p.valid = false;
+                            }
+                        }
+                    }
+                    render();
+                };
+
+                let animId = null;
+                let lastTimestamp = null;
+                const baseDuration = 1600;
+
+                const animationLoop = (timestamp) => {
+                    if (!lastTimestamp) lastTimestamp = timestamp;
+                    const delta = timestamp - lastTimestamp;
+                    lastTimestamp = timestamp;
+
+                    if (isPlaying.value) {
+                        const increment = (delta / baseDuration) * animSpeed.value;
+                        animProgress.value += increment;
+
+                        if (animProgress.value >= 1.0) {
+                            animProgress.value = 1.0;
+                            isPlaying.value = false;
+                        }
+                    }
+
+                    render();
+
+                    if (isPlaying.value) {
+                        animId = requestAnimationFrame(animationLoop);
+                    } else {
+                        animId = null;
+                        lastTimestamp = null;
+                    }
+                };
+
+                const startAnimation = () => {
+                    animProgress.value = 0.0;
+                    isPlaying.value = true;
+                    if (!animId) {
+                        lastTimestamp = null;
+                        animId = requestAnimationFrame(animationLoop);
+                    }
+                };
+
+                const togglePlayPause = () => {
+                    isPlaying.value = !isPlaying.value;
+                    if (isPlaying.value) {
+                        if (animProgress.value >= 1.0) animProgress.value = 0.0;
+                        lastTimestamp = null;
+                        if (!animId) animId = requestAnimationFrame(animationLoop);
+                    } else if (animId) {
+                        cancelAnimationFrame(animId);
+                        animId = null;
+                    }
+                };
+
+                const restartAnimation = () => {
+                    isPlaying.value = false;
+                    if (animId) { cancelAnimationFrame(animId); animId = null; }
+                    animProgress.value = 0.0;
+                    render();
+                    isPlaying.value = true;
+                    lastTimestamp = null;
+                    animId = requestAnimationFrame(animationLoop);
+                };
+
+                const onTimelineScrub = () => {
+                    if (isPlaying.value) {
+                        isPlaying.value = false;
+                        if (animId) { cancelAnimationFrame(animId); animId = null; }
+                    }
+                    render();
+                };
+
+                const centerViewport = () => {
+                    singleView.centerX = 0; singleView.centerY = 0;
+                    domainView.centerX = 0; domainView.centerY = 0;
+                    targetView.centerX = 0; targetView.centerY = 0;
+                    render();
+                };
+
+                const resetZoom = () => {
+                    singleView.centerX = 0; singleView.centerY = 0; singleView.scale = 1;
+                    domainView.centerX = 0; domainView.centerY = 0; domainView.scale = 1;
+                    targetView.centerX = 0; targetView.centerY = 0; targetView.scale = 1;
+                    render();
+                };
+
+                const render = () => {
+                    nextTick(() => {
+                        if (isCircleInversionMode.value) {
+                            renderDualCanvases();
+                        } else {
+                            renderSingleCanvas();
+                        }
+                    });
+                };
+
+                const renderSingleCanvas = () => {
+                    if (!singleCanvas.value) return;
+                    const canvas = singleCanvas.value;
+                    const width = canvas.clientWidth;
+                    const height = canvas.clientHeight;
+                    if (canvas.width !== width || canvas.height !== height) {
+                        canvas.width = width;
+                        canvas.height = height;
+                    }
+                    if (!singleCtx) singleCtx = canvas.getContext('2d');
+                    const ctx = singleCtx;
+
+                    ctx.clearRect(0, 0, width, height);
+                    if (width === 0 || height === 0) return;
+
+                    const minDim = Math.min(width, height);
+                    const baseScale = (minDim / 8.0) * singleView.scale;
+
+                    const toPixel = (x, y) => ({
+                        px: width / 2 + (x - singleView.centerX) * baseScale,
+                        py: height / 2 - (y - singleView.centerY) * baseScale
+                    });
+
+                    drawGridAndAxes(ctx, width, height, baseScale, singleView);
+
+                    const prog = animProgress.value;
+                    const easedProg = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+                    const r = dotRadius.value;
+                    const dStep = Number(dotStep.value);
+
+                    // Horizontal lines (Green)
+                    if (showHorizontal.value) {
+                        ctx.lineWidth = horizontalLineWidth.value;
+                        ctx.strokeStyle = '#00ff66';
+                        for (let i = 0; i < latticeGrid.length; i++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let j = 0; j < latticeGrid[i].length; j++) {
+                                const pt = latticeGrid[i][j];
+                                if (!pt.valid) { started = false; continue; }
+                                const cx = pt.x + (pt.targetX - pt.x) * easedProg;
+                                const cy = pt.y + (pt.targetY - pt.y) * easedProg;
+                                const px = toPixel(cx, cy);
+                                if (!started) { ctx.moveTo(px.px, px.py); started = true; }
+                                else { ctx.lineTo(px.px, px.py); }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Vertical lines (Purple)
+                    if (showVertical.value) {
+                        ctx.lineWidth = verticalLineWidth.value;
+                        ctx.strokeStyle = '#cc00ff';
+                        const numCols = latticeGrid[0].length;
+                        for (let j = 0; j < numCols; j++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let i = 0; i < latticeGrid.length; i++) {
+                                const pt = latticeGrid[i][j];
+                                if (!pt.valid) { started = false; continue; }
+                                const cx = pt.x + (pt.targetX - pt.x) * easedProg;
+                                const cy = pt.y + (pt.targetY - pt.y) * easedProg;
+                                const px = toPixel(cx, cy);
+                                if (!started) { ctx.moveTo(px.px, px.py); started = true; }
+                                else { ctx.lineTo(px.px, px.py); }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Draw lattice dots with spacing step
+                    for (let i = 0; i < latticeGrid.length; i += dStep) {
+                        for (let j = 0; j < latticeGrid[i].length; j += dStep) {
+                            const pt = latticeGrid[i][j];
+                            if (!pt || !pt.valid) continue;
+                            const cx = pt.x + (pt.targetX - pt.x) * easedProg;
+                            const cy = pt.y + (pt.targetY - pt.y) * easedProg;
+                            const pos = toPixel(cx, cy);
+
+                            if (pos.px < -20 || pos.px > width + 20 || pos.py < -20 || pos.py > height + 20) continue;
+
+                            ctx.beginPath();
+                            ctx.arc(pos.px, pos.py, r, 0, 2 * Math.PI);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.shadowColor = '#cc00ff';
+                            ctx.shadowBlur = 5;
+                            ctx.fill();
+                            ctx.shadowBlur = 0;
+                        }
+                    }
+                };
+
+                const renderDualCanvases = () => {
+                    if (!domainCanvas.value || !targetCanvas.value) return;
+                    
+                    const dCanvas = domainCanvas.value;
+                    const dw = dCanvas.clientWidth;
+                    const dh = dCanvas.clientHeight;
+                    if (dCanvas.width !== dw || dCanvas.height !== dh) { dCanvas.width = dw; dCanvas.height = dh; }
+                    if (!domainCtx) domainCtx = dCanvas.getContext('2d');
+                    
+                    const tCanvas = targetCanvas.value;
+                    const tw = tCanvas.clientWidth;
+                    const th = tCanvas.clientHeight;
+                    if (tCanvas.width !== tw || tCanvas.height !== th) { tCanvas.width = tw; tCanvas.height = th; }
+                    if (!targetCtx) targetCtx = tCanvas.getContext('2d');
+
+                    renderPlaneInDual(domainCtx, dCanvas, domainView, false);
+                    renderPlaneInDual(targetCtx, tCanvas, targetView, true);
+                };
+
+                const renderPlaneInDual = (ctx, canvas, view, isTarget) => {
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    ctx.clearRect(0, 0, width, height);
+                    if (width === 0 || height === 0) return;
+
+                    const minDim = Math.min(width, height);
+                    const baseScale = (minDim / 8.0) * view.scale;
+                    const toPixel = (x, y) => ({
+                        px: width / 2 + (x - view.centerX) * baseScale,
+                        py: height / 2 - (y - view.centerY) * baseScale
+                    });
+
+                    drawGridAndAxes(ctx, width, height, baseScale, view);
+
+                    const prog = animProgress.value;
+                    const easedProg = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+                    const r = dotRadius.value;
+                    const dStep = Number(dotStep.value);
+
+                    if (!isTarget && isCircleInversionMode.value) {
+                        const centerPix = toPixel(circleCenter.x, circleCenter.y);
+                        const radiusPix = inversionRadius.value * baseScale;
+
+                        ctx.beginPath();
+                        ctx.arc(centerPix.px, centerPix.py, radiusPix, 0, 2 * Math.PI);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#cc00ff';
+                        ctx.fillStyle = 'rgba(204, 0, 255, 0.05)';
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.arc(centerPix.px, centerPix.py, 6, 0, 2 * Math.PI);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowColor = '#cc00ff';
+                        ctx.shadowBlur = 8;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+
+                    // Horizontal lines (Green)
+                    if (showHorizontal.value) {
+                        ctx.lineWidth = horizontalLineWidth.value;
+                        ctx.strokeStyle = '#00ff66';
+                        for (let i = 0; i < latticeGrid.length; i++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let j = 0; j < latticeGrid[i].length; j++) {
+                                const pt = latticeGrid[i][j];
+                                if (!pt.valid) { started = false; continue; }
+                                const cx = isTarget ? (pt.x + (pt.targetX - pt.x) * easedProg) : pt.x;
+                                const cy = isTarget ? (pt.y + (pt.targetY - pt.y) * easedProg) : pt.y;
+                                const px = toPixel(cx, cy);
+                                if (!started) { ctx.moveTo(px.px, px.py); started = true; }
+                                else { ctx.lineTo(px.px, px.py); }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Vertical lines (Purple)
+                    if (showVertical.value) {
+                        ctx.lineWidth = verticalLineWidth.value;
+                        ctx.strokeStyle = '#cc00ff';
+                        const numCols = latticeGrid[0].length;
+                        for (let j = 0; j < numCols; j++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let i = 0; i < latticeGrid.length; i++) {
+                                const pt = latticeGrid[i][j];
+                                if (!pt.valid) { started = false; continue; }
+                                const cx = isTarget ? (pt.x + (pt.targetX - pt.x) * easedProg) : pt.x;
+                                const cy = isTarget ? (pt.y + (pt.targetY - pt.y) * easedProg) : pt.y;
+                                const px = toPixel(cx, cy);
+                                if (!started) { ctx.moveTo(px.px, px.py); started = true; }
+                                else { ctx.lineTo(px.px, px.py); }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Dots with spacing step
+                    for (let i = 0; i < latticeGrid.length; i += dStep) {
+                        for (let j = 0; j < latticeGrid[i].length; j += dStep) {
+                            const pt = latticeGrid[i][j];
+                            if (!pt || !pt.valid) continue;
+                            const cx = isTarget ? (pt.x + (pt.targetX - pt.x) * easedProg) : pt.x;
+                            const cy = isTarget ? (pt.y + (pt.targetY - pt.y) * easedProg) : pt.y;
+                            const pos = toPixel(cx, cy);
+                            if (pos.px < -20 || pos.px > width + 20 || pos.py < -20 || pos.py > height + 20) continue;
+
+                            ctx.beginPath();
+                            ctx.arc(pos.px, pos.py, r, 0, 2 * Math.PI);
+                            ctx.fillStyle = isTarget ? '#a855f7' : '#38bdf8';
+                            ctx.fill();
+                        }
+                    }
+                };
+
+                const drawGridAndAxes = (ctx, width, height, baseScale, view) => {
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = '10px Inter, monospace';
+
+                    const startX = view.centerX - (width / 2) / baseScale;
+                    const endX = view.centerX + (width / 2) / baseScale;
+                    const startY = view.centerY - (height / 2) / baseScale;
+                    const endY = view.centerY + (height / 2) / baseScale;
+
+                    for (let x = Math.floor(startX); x <= Math.ceil(endX); x++) {
+                        const p1 = toPixRaw(x, startY, width, height, baseScale, view);
+                        const p2 = toPixRaw(x, endY, width, height, baseScale, view);
+                        ctx.beginPath(); ctx.moveTo(p1.px, 0); ctx.lineTo(p2.px, height); ctx.stroke();
+                    }
+                    for (let y = Math.floor(startY); y <= Math.ceil(endY); y++) {
+                        const p1 = toPixRaw(startX, y, width, height, baseScale, view);
+                        const p2 = toPixRaw(endX, y, width, height, baseScale, view);
+                        ctx.beginPath(); ctx.moveTo(0, p1.py); ctx.lineTo(width, p2.py); ctx.stroke();
+                    }
+
+                    const origin = toPixRaw(0, 0, width, height, baseScale, view);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#334155';
+                    ctx.beginPath(); ctx.moveTo(0, origin.py); ctx.lineTo(width, origin.py); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(origin.px, 0); ctx.lineTo(origin.px, height); ctx.stroke();
+                };
+
+                const toPixRaw = (x, y, width, height, baseScale, view) => ({
+                    px: width / 2 + (x - view.centerX) * baseScale,
+                    py: height / 2 - (y - view.centerY) * baseScale
+                });
+
+                const pixelToMath = (px, py, canvas, view) => {
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const minDim = Math.min(width, height);
+                    const baseScale = (minDim / 8.0) * view.scale;
+                    const x = view.centerX + (px - width / 2) / baseScale;
+                    const y = view.centerY - (py - height / 2) / baseScale;
+                    return { x, y };
+                };
+
+                const onSingleMouseDown = (e) => {
+                    isDragging = true;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                };
+
+                const onSingleMouseMove = (e) => {
+                    const canvas = singleCanvas.value;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mathCoord = pixelToMath(e.clientX - rect.left, e.clientY - rect.top, canvas, singleView);
+                    hoveredZ.value = mathCoord;
+
+                    if (compiledFunc.value) {
+                        try {
+                            const res = compiledFunc.value.evaluate({ z: math.complex(mathCoord.x, mathCoord.y) });
+                            if (res && typeof res.re === 'number') hoveredW.value = { x: res.re, y: res.im };
+                        } catch (err) { hoveredW.value = null; }
+                    }
+
+                    if (!isDragging) return;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+
+                    const minDim = Math.min(canvas.width, canvas.height);
+                    const baseScale = (minDim / 8.0) * singleView.scale;
+                    singleView.centerX -= dx / baseScale;
+                    singleView.centerY += dy / baseScale;
+                    render();
+                };
+
+                const onSingleMouseUp = () => { isDragging = false; };
+                const onSingleWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.06 : 0.94;
+                    singleView.scale = Math.max(0.2, Math.min(20, singleView.scale * zoomFactor));
+                    render();
+                };
+
+                const onDomainMouseDown = (e) => {
+                    const canvas = domainCanvas.value;
+                    const rect = canvas.getBoundingClientRect();
+                    const mathCoord = pixelToMath(e.clientX - rect.left, e.clientY - rect.top, canvas, domainView);
+                    
+                    const dist = Math.hypot(mathCoord.x - circleCenter.x, mathCoord.y - circleCenter.y);
+                    if (dist < 0.5) {
+                        isDraggingCircleCenter = true;
+                    } else {
+                        isDragging = true;
+                    }
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                };
+
+                const onDomainMouseMove = (e) => {
+                    const canvas = domainCanvas.value;
+                    if (!canvas) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const mathCoord = pixelToMath(e.clientX - rect.left, e.clientY - rect.top, canvas, domainView);
+
+                    if (isDraggingCircleCenter) {
+                        circleCenter.x = mathCoord.x;
+                        circleCenter.y = mathCoord.y;
+                        updateLatticeTargets();
+                        return;
+                    }
+
+                    if (!isDragging) return;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+
+                    const minDim = Math.min(canvas.width, canvas.height);
+                    const baseScale = (minDim / 8.0) * domainView.scale;
+                    domainView.centerX -= dx / baseScale;
+                    domainView.centerY += dy / baseScale;
+                    render();
+                };
+
+                const onDomainMouseUp = () => { isDragging = false; isDraggingCircleCenter = false; };
+                const onDomainWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.06 : 0.94;
+                    domainView.scale = Math.max(0.2, Math.min(20, domainView.scale * zoomFactor));
+                    render();
+                };
+
+                const onTargetMouseDown = (e) => { isDragging = true; startDragX = e.clientX; startDragY = e.clientY; };
+                const onTargetMouseMove = (e) => {
+                    if (!isDragging) return;
+                    const canvas = targetCanvas.value;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                    const minDim = Math.min(canvas.width, canvas.height);
+                    const baseScale = (minDim / 8.0) * targetView.scale;
+                    targetView.centerX -= dx / baseScale;
+                    targetView.centerY += dy / baseScale;
+                    render();
+                };
+                const onTargetMouseUp = () => { isDragging = false; };
+                const onTargetWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.06 : 0.94;
+                    targetView.scale = Math.max(0.2, Math.min(20, targetView.scale * zoomFactor));
+                    render();
+                };
+
+                const formatComplex = (c) => {
+                    if (!c) return '';
+                    const sign = c.y >= 0 ? '+' : '-';
+                    return `${c.x.toFixed(2)} ${sign} ${Math.abs(c.y).toFixed(2)}i`;
+                };
+
+                onMounted(() => {
+                    rebuildLattice();
+                    applyFunction();
+                    window.addEventListener('resize', render);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('resize', render);
+                    if (animId) cancelAnimationFrame(animId);
+                });
+
+                return {
+                    expressionInput,
+                    currentPresetName,
+                    parseError,
+                    animProgress,
+                    isPlaying,
+                    animSpeed,
+                    latticeResolution,
+                    dotRadius,
+                    dotStep,
+                    inversionRadius,
+                    showHorizontal,
+                    showVertical,
+                    horizontalLineWidth,
+                    verticalLineWidth,
+                    toggleHorizontal,
+                    toggleVertical,
+                    hoveredZ,
+                    hoveredW,
+                    singleCanvas,
+                    domainCanvas,
+                    targetCanvas,
+                    presets,
+                    applyFunction,
+                    selectPreset,
+                    rebuildLattice,
+                    updateLatticeTargets,
+                    togglePlayPause,
+                    restartAnimation,
+                    onTimelineScrub,
+                    centerViewport,
+                    resetZoom,
+                    onSingleMouseDown,
+                    onSingleMouseMove,
+                    onSingleMouseUp,
+                    onSingleWheel,
+                    onDomainMouseDown,
+                    onDomainMouseMove,
+                    onDomainMouseUp,
+                    onDomainWheel,
+                    onTargetMouseDown,
+                    onTargetMouseMove,
+                    onTargetMouseUp,
+                    onTargetWheel,
+                    formatComplex,
+                    render
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complex Function Mapper</title>
+
+  <!-- HeroUI Styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@heroui/styles@3.2.2/dist/styles.css" />
+
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- math.js (complex number support) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .controls {
+      padding: 1rem 1.5rem;
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .controls-inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .controls-inner > * {
+      min-width: 120px;
+    }
+    .controls-inner .expr {
+      flex: 1 1 240px;
+    }
+    .plots-container {
+      display: flex;
+      flex: 1;
+      gap: 1.25rem;
+      padding: 1.25rem 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .plot-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .plot-header {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .plot {
+      flex: 1;
+      min-height: 350px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    /* HeroUI overrides */
+    heroui-card, heroui-card-body, heroui-card-header {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- ── Controls ─────────────────────────────────── -->
+    <div class="controls">
+      <div class="controls-inner">
+        <div class="expr">
+          <heroui-input
+            v-model="expression"
+            label="f(z) ="
+            placeholder="e.g., e^z, log(z), 1/z"
+            @keyup.enter="animate"
+          ></heroui-input>
+        </div>
+
+        <heroui-select
+          v-model="selectedBuiltin"
+          label="Built-in"
+          @change="applyBuiltin"
+        >
+          <option value="">Custom</option>
+          <option value="e^z">e^z</option>
+          <option value="z^2">z^2</option>
+          <option value="z^3">z^3</option>
+          <option value="log(z)">log(z)</option>
+          <option value="1/z">1/z</option>
+          <option value="sin(z)">sin(z)</option>
+          <option value="cos(z)">cos(z)</option>
+          <option value="z + 1">z + 1 (translation)</option>
+          <option value="z * i">z * i (rotation 90°)</option>
+          <option value="conj(z)">conj(z) (reflection)</option>
+          <option value="(z - 1)/(z + 1)">(z-1)/(z+1) (Möbius)</option>
+          <option value="inversion">Inversion (1/conj z)</option>
+        </heroui-select>
+
+        <heroui-slider
+          v-model="gridDensity"
+          label="Grid Density"
+          :min="5"
+          :max="30"
+          :step="1"
+        ></heroui-slider>
+
+        <heroui-slider
+          v-model="dotSize"
+          label="Dot Size"
+          :min="1"
+          :max="12"
+          :step="0.5"
+        ></heroui-slider>
+
+        <div class="btn-row">
+          <heroui-button color="primary" @click="animate">Animate</heroui-button>
+          <heroui-button variant="bordered" @click="reset">Reset</heroui-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Plots ────────────────────────────────────── -->
+    <div class="plots-container">
+      <div class="plot-card">
+        <div class="plot-header">Original Plane (z)</div>
+        <div class="plot" ref="leftPlot"></div>
+      </div>
+      <div class="plot-card">
+        <div class="plot-header">Transformed Plane (f(z))</div>
+        <div class="plot" ref="rightPlot"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      createApp, ref, onMounted, watch, nextTick, computed
+    } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+
+    // HeroUI Vue components (CDN via esm.sh)
+    import {
+      Button, Card, CardHeader, CardBody, Input, Select, Slider
+    } from 'https://esm.sh/@itsjustanks/heroui-vue@latest?deps=vue@3.5.13';
+
+    const app = createApp({
+      components: {
+        'heroui-button': Button,
+        'heroui-card': Card,
+        'heroui-card-header': CardHeader,
+        'heroui-card-body': CardBody,
+        'heroui-input': Input,
+        'heroui-select': Select,
+        'heroui-slider': Slider,
+      },
+
+      setup() {
+        // ── Reactive state ──────────────────────────────
+        const expression      = ref('e^z');
+        const selectedBuiltin = ref('e^z');
+        const gridDensity     = ref(15);
+        const dotSize         = ref(4);
+
+        const leftPlot  = ref(null);
+        const rightPlot = ref(null);
+
+        const originalPoints   = ref([]);
+        const transformedPoints = ref([]);
+
+        // ── Helpers ─────────────────────────────────────
+
+        /** Generate a square lattice of points in [-2, 2] × [-2, 2] */
+        function generateGrid() {
+          const n = gridDensity.value;
+          const pts = [];
+          const range = 2;
+          const step = (range * 2) / (n - 1);
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              pts.push({
+                x: -range + i * step,
+                y: -range + j * step,
+              });
+            }
+          }
+          return pts;
+        }
+
+        /**
+         * Apply the current expression to a single complex point.
+         * Returns { x, y } or null if the result is invalid.
+         */
+        function applyFunction(pt, expr) {
+          try {
+            // --- Special built-ins ---
+            if (expr === 'inversion') {
+              // Inversion w.r.t. unit circle: 1 / conj(z)
+              const conj = math.conj(math.complex(pt.x, pt.y));
+              const res  = math.divide(1, conj);
+              return { x: res.re, y: res.im };
+            }
+
+            // --- General expression ---
+            const z = math.complex(pt.x, pt.y);
+            const scope = { z };
+            const result = math.evaluate(expr, scope);
+
+            if (result && typeof result === 'object' && result.re !== undefined) {
+              return { x: result.re, y: result.im };
+            }
+            return null;
+          } catch {
+            return null; // syntax error, division by zero, etc.
+          }
+        }
+
+        /** Recompute all transformed points from the current expression. */
+        function computeTransformed() {
+          transformedPoints.value = originalPoints.value
+            .map(p => applyFunction(p, expression.value))
+            .filter(p => p !== null && isFinite(p.x) && isFinite(p.y));
+        }
+
+        // ── Plot rendering ─────────────────────────────
+
+        const plotLayout = (extra = {}) => ({
+          margin: { l: 30, r: 30, t: 30, b: 30 },
+          xaxis: {
+            zeroline: true,
+            zerolinecolor: '#94a3b8',
+            gridcolor: '#e2e8f0',
+            ...extra.xaxis,
+          },
+          yaxis: {
+            zeroline: true,
+            zerolinecolor: '#94a3b8',
+            gridcolor: '#e2e8f0',
+            scaleanchor: 'x',
+            ...extra.yaxis,
+          },
+          showlegend: false,
+          ...extra,
+        });
+
+        function renderLeftPlot() {
+          if (!leftPlot.value) return;
+          const pts = originalPoints.value;
+          Plotly.newPlot(
+            leftPlot.value,
+            [{
+              x: pts.map(p => p.x),
+              y: pts.map(p => p.y),
+              mode: 'markers',
+              type: 'scatter',
+              marker: { size: dotSize.value, color: '#6366f1' },
+            }],
+            plotLayout({
+              xaxis: { range: [-2.5, 2.5] },
+              yaxis: { range: [-2.5, 2.5] },
+            }),
+            { responsive: true, displayModeBar: false }
+          );
+        }
+
+        function renderRightPlot() {
+          if (!rightPlot.value) return;
+          const pts = transformedPoints.value;
+          if (pts.length === 0) {
+            Plotly.purge(rightPlot.value);
+            return;
+          }
+          Plotly.newPlot(
+            rightPlot.value,
+            [{
+              x: pts.map(p => p.x),
+              y: pts.map(p => p.y),
+              mode: 'markers',
+              type: 'scatter',
+              marker: { size: dotSize.value, color: '#ec4899' },
+            }],
+            plotLayout(),
+            { responsive: true, displayModeBar: false }
+          );
+        }
+
+        // ── Animation ──────────────────────────────────
+
+        function animate() {
+          computeTransformed();
+
+          // Build (start → end) pairs for every point that maps to a valid result
+          const pairs = [];
+          originalPoints.value.forEach(p => {
+            const res = applyFunction(p, expression.value);
+            if (res && isFinite(res.x) && isFinite(res.y)) {
+              pairs.push({ start: p, end: res });
+            }
+          });
+          if (pairs.length === 0) return;
+
+          // Seed the right plot with the *original* positions
+          if (!rightPlot.value) return;
+          Plotly.newPlot(
+            rightPlot.value,
+            [{
+              x: pairs.map(p => p.start.x),
+              y: pairs.map(p => p.start.y),
+              mode: 'markers',
+              type: 'scatter',
+              marker: { size: dotSize.value, color: '#ec4899' },
+            }],
+            plotLayout(),
+            { responsive: true, displayModeBar: false }
+          );
+
+          // Animate using requestAnimationFrame
+          const duration = 1400; // ms
+          const startTime = performance.now();
+
+          function step(now) {
+            const t = Math.min((now - startTime) / duration, 1);
+            const eased = t; // linear easing – could use cubic ease-in-out
+
+            const x = pairs.map(p => p.start.x + (p.end.x - p.start.x) * eased);
+            const y = pairs.map(p => p.start.y + (p.end.y - p.start.y) * eased);
+
+            Plotly.react(
+              rightPlot.value,
+              [{
+                x, y,
+                mode: 'markers',
+                type: 'scatter',
+                marker: { size: dotSize.value, color: '#ec4899' },
+              }],
+              plotLayout(),
+              { responsive: true, displayModeBar: false }
+            );
+
+            if (t < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+
+        // ── Actions ─────────────────────────────────────
+
+        function reset() {
+          expression.value      = 'e^z';
+          selectedBuiltin.value = 'e^z';
+          gridDensity.value     = 15;
+          dotSize.value         = 4;
+          originalPoints.value  = generateGrid();
+          computeTransformed();
+          nextTick(() => {
+            renderLeftPlot();
+            renderRightPlot();
+          });
+        }
+
+        function applyBuiltin() {
+          if (selectedBuiltin.value) {
+            expression.value = selectedBuiltin.value;
+          }
+        }
+
+        // ── Watchers ────────────────────────────────────
+
+        watch([gridDensity, dotSize], () => {
+          originalPoints.value = generateGrid();
+          computeTransformed();
+          nextTick(() => {
+            renderLeftPlot();
+            renderRightPlot();
+          });
+        });
+
+        watch(expression, () => {
+          computeTransformed();
+          nextTick(() => renderRightPlot());
+        });
+
+        // ── Lifecycle ───────────────────────────────────
+
+        onMounted(() => {
+          originalPoints.value = generateGrid();
+          computeTransformed();
+          nextTick(() => {
+            renderLeftPlot();
+            renderRightPlot();
+          });
+        });
+
+        // ── Expose to template ──────────────────────────
+
+        return {
+          expression,
+          selectedBuiltin,
+          gridDensity,
+          dotSize,
+          leftPlot,
+          rightPlot,
+          animate,
+          reset,
+          applyBuiltin,
+        };
+      },
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>

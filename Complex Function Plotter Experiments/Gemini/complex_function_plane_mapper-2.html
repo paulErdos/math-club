@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Function Plane Mapper</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Math.js CDN for robust complex number and expression parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+
+    <div id="app" v-cloak class="h-full flex flex-col">
+        <!-- Top Navbar -->
+        <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0 shadow-md">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-atom text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Complex Plane Mapper</h1>
+                    <p class="text-xs text-slate-400">Visualizing $w = f(z)$ as a global coordinate transformation</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button @click="resetAll" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Reset View</span>
+                </button>
+                <button @click="showInfoModal = true" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>Guide & Presets</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            
+            <!-- Left Side: Control Panel & Presets -->
+            <aside class="w-full lg:w-80 bg-slate-900/90 border-r border-slate-800 flex flex-col p-4 overflow-y-auto shrink-0 space-y-4">
+                
+                <!-- Function Expression Input -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Complex Function f(z)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-indigo-400 font-mono text-sm font-bold">f(z) =</span>
+                        <input 
+                            type="text" 
+                            v-model="expressionInput" 
+                            @keyup.enter="applyFunction"
+                            placeholder="e.g. exp(z), z^2, 1/z" 
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-16 pr-10 py-2 text-sm font-mono text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner">
+                        <button @click="applyFunction" title="Evaluate & Animate" class="absolute inset-y-1 right-1 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                    </div>
+                    <div v-if="parseError" class="text-xs text-rose-400 bg-rose-950/40 border border-rose-900/50 p-2 rounded-lg font-mono">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> {{ parseError }}
+                    </div>
+                </div>
+
+                <!-- Built-in Presets -->
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Preset Transformations</label>
+                    <div class="grid grid-cols-1 gap-1 max-h-40 overflow-y-auto pr-1">
+                        <button v-for="preset in presets" :key="preset.name" @click="selectPreset(preset)" 
+                            class="w-full text-left px-2.5 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/50 transition flex items-center justify-between group">
+                            <div>
+                                <div class="text-[11px] font-medium text-slate-200 group-hover:text-indigo-300">{{ preset.label }}</div>
+                                <div class="text-[10px] font-mono text-slate-400">{{ preset.expr }}</div>
+                            </div>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-indigo-400 transition"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animation & Playback Controls -->
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Animation & Playback</label>
+                    
+                    <!-- Scrubbing Timeline -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Timeline Progress</span>
+                            <span class="font-mono text-indigo-300">{{ Math.round(animProgress * 100) }}%</span>
+                        </div>
+                        <input type="range" min="0" max="1" step="0.005" v-model.number="animProgress" @input="onTimelineScrub" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer">
+                    </div>
+
+                    <!-- Play/Pause & Restart Toolbar -->
+                    <div class="flex items-center space-x-2">
+                        <button @click="togglePlayPause" class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition flex items-center justify-center space-x-2">
+                            <i :class="isPlaying ? 'fa-solid fa-pause' : 'fa-solid fa-play'"></i>
+                            <span>{{ isPlaying ? 'Pause' : 'Play Animation' }}</span>
+                        </button>
+                        <button @click="restartAnimation" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition" title="Restart from Beginning">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </div>
+
+                    <!-- Speed Control Slider -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Animation Speed</span>
+                            <span class="font-mono text-slate-200">{{ animSpeed.toFixed(1) }}x</span>
+                        </div>
+                        <input type="range" min="0.2" max="3.0" step="0.2" v-model.number="animSpeed" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+                </div>
+
+                <!-- Grid & Lattice Parameters -->
+                <div class="space-y-2.5 pt-2 border-t border-slate-800">
+                    <label class="block text-xs font-semibold tracking-wider text-slate-400 uppercase">Grid & Lattice Settings</label>
+                    
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Grid Range (-X to +X)</span>
+                            <span class="font-mono text-slate-200">{{ gridRange.toFixed(1) }}</span>
+                        </div>
+                        <input type="range" min="2" max="15" step="0.5" v-model.number="gridRange" @change="rebuildLattice" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Lattice Density (Dots)</span>
+                            <span class="font-mono text-slate-200">{{ latticeResolution }} x {{ latticeResolution }}</span>
+                        </div>
+                        <input type="range" min="10" max="60" step="5" v-model.number="latticeResolution" @change="rebuildLattice" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Dot Radius</span>
+                            <span class="font-mono text-slate-200">{{ dotRadius }}px</span>
+                        </div>
+                        <input type="range" min="1.5" max="6" step="0.5" v-model.number="dotRadius" @change="render" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg">
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs text-slate-300">Connect Lattice Grid Lines</span>
+                        <input type="checkbox" v-model="showGridLines" @change="render" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-indigo-500 accent-indigo-600">
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- Right Side: Side-by-Side Fluid Canvases Filling Available Screen Space -->
+            <main class="flex-1 grid grid-cols-1 md:grid-cols-2 bg-slate-950 gap-3 p-3 overflow-hidden min-h-0">
+                
+                <!-- Source Plane (Left Canvas Card) -->
+                <div class="flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl relative h-full">
+                    <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-sm shadow-emerald-500/50"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Source Plane ($z = x + iy$)</h2>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded">Domain</span>
+                    </div>
+                    <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="sourceContainer">
+                        <canvas ref="sourceCanvas" @mousedown="onSourceMouseDown" @mousemove="onSourceMouseMove" @mouseup="onSourceMouseUp" @mouseleave="onSourceMouseUp" @wheel.prevent="onSourceWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono px-2.5 py-1.5 rounded-lg text-slate-400 pointer-events-none space-y-0.5 shadow-md z-10">
+                            <div>Pan: Click & Drag</div>
+                            <div>Zoom: Scroll Wheel</div>
+                            <div v-if="hoveredZ">Cursor: {{ formatComplex(hoveredZ) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Plane (Right Canvas Card) -->
+                <div class="flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl relative h-full">
+                    <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between shrink-0">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-sm shadow-indigo-500/50"></span>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Target Plane ($w = f(z)$)</h2>
+                        </div>
+                        <span class="text-[11px] font-mono text-indigo-400 bg-indigo-950/60 border border-indigo-900/50 px-2 py-0.5 rounded">Codomain</span>
+                    </div>
+                    <div class="flex-1 relative w-full h-full overflow-hidden cursor-crosshair" ref="targetContainer">
+                        <canvas ref="targetCanvas" @mousedown="onTargetMouseDown" @mousemove="onTargetMouseMove" @mouseup="onTargetMouseUp" @mouseleave="onTargetMouseUp" @wheel.prevent="onTargetWheel" class="absolute inset-0 w-full h-full block"></canvas>
+                        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur border border-slate-800 text-[10px] font-mono px-2.5 py-1.5 rounded-lg text-slate-400 pointer-events-none space-y-0.5 shadow-md z-10">
+                            <div>Pan: Click & Drag</div>
+                            <div>Zoom: Scroll Wheel</div>
+                            <div v-if="hoveredW">Target: {{ formatComplex(hoveredW) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </main>
+
+        <!-- Information / Guide Modal -->
+        <div v-if="showInfoModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 overflow-y-auto max-h-[90vh]">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-book"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white">Complex Function Mapping Guide</h3>
+                    </div>
+                    <button @click="showInfoModal = false" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+                    <p>
+                        This application demonstrates how complex-valued functions <span class="font-mono text-indigo-300">f: ℂ → ℂ</span> act as a continuous spatial warping or restructuring of the entire complex plane, rather than plotting single curves.
+                    </p>
+                    <div class="space-y-2">
+                        <h4 class="font-semibold text-white uppercase tracking-wider text-[11px]">Key Built-in Transformations</h4>
+                        <ul class="list-disc list-inside space-y-1 text-slate-300 pl-1 font-mono">
+                            <li><span class="text-indigo-300">exp(z)</span>: Exponential function (periodically maps horizontal strips into concentric circles and rays).</li>
+                            <li><span class="text-indigo-300">z^2</span>: Squares coordinates and doubles angles, doubling winding numbers.</li>
+                            <li><span class="text-indigo-300">log(z)</span>: Principal branch of complex logarithm (inverts exponential map).</li>
+                            <li><span class="text-indigo-300">1/z</span>: Inversion mapping circles and lines into circles and lines while swapping inside/outside.</li>
+                            <li><span class="text-indigo-300">circle_inv</span>: Inversion with respect to the unit circle (<span class="font-mono">1 / conj(z)</span>).</li>
+                            <li><span class="text-indigo-300">mobius</span>: Möbius linear fractional transformation <span class="font-mono">(2*z + 1) / (z + 2)</span>.</li>
+                            <li><span class="text-indigo-300">translation</span>: Shifts plane by <span class="font-mono">z + 2 + 1i</span>.</li>
+                            <li><span class="text-indigo-300">rotation</span>: Rotates plane by an angle <span class="font-mono">z * exp(0.5i)</span>.</li>
+                            <li><span class="text-indigo-300">reflection</span>: Complex conjugation <span class="font-mono">conj(z)</span>.</li>
+                        </ul>
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="font-semibold text-white uppercase tracking-wider text-[11px]">Math Syntax Supported</h4>
+                        <p>Powered by Math.js, you can write expressions using standard notation such as <span class="font-mono text-indigo-300">z^3 - 1</span>, <span class="font-mono text-indigo-300">sin(z)</span>, <span class="font-mono text-indigo-300">cos(z)</span>, or <span class="font-mono text-indigo-300">sqrt(z)</span>. Imaginary unit <span class="font-mono text-indigo-300">i</span> is fully supported.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-800">
+                    <button @click="showInfoModal = false" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition shadow-md">
+                        Got it, Let's Explore!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, onUnmounted } = Vue;
+
+        createApp({
+            setup() {
+                // UI & State refs
+                const expressionInput = ref('exp(z)');
+                const compiledFunc = ref(null);
+                const parseError = ref(null);
+                const animProgress = ref(1.0); // 0.0 = source, 1.0 = target
+                const isPlaying = ref(false);
+                const animSpeed = ref(1.0);
+                const showInfoModal = ref(false);
+
+                // Grid & Lattice options
+                const gridRange = ref(4.0);
+                const latticeResolution = ref(30);
+                const dotRadius = ref(3.0);
+                const showGridLines = ref(true);
+
+                // Hover states
+                const hoveredZ = ref(null);
+                const hoveredW = ref(null);
+
+                // Canvas refs & contexts
+                const sourceCanvas = ref(null);
+                const targetCanvas = ref(null);
+                const sourceContainer = ref(null);
+                const targetContainer = ref(null);
+
+                let sourceCtx = null;
+                let targetCtx = null;
+
+                // Pan & Zoom viewports
+                const sourceView = reactive({ centerX: 0, centerY: 0, scale: 1 });
+                const targetView = reactive({ centerX: 0, centerY: 0, scale: 1 });
+
+                // Mouse interaction state for dragging/panning
+                let isDraggingSource = false;
+                let isDraggingTarget = false;
+                let startDragX = 0;
+                let startDragY = 0;
+
+                // Lattice Data
+                let latticePoints = [];
+
+                // Presets list
+                const presets = [
+                    { name: 'exp', label: 'Exponential e^z', expr: 'exp(z)' },
+                    { name: 'square', label: 'Quadratic z^2', expr: 'z^2' },
+                    { name: 'cubic', label: 'Cubic z^3 - 1', expr: 'z^3 - 1' },
+                    { name: 'inv', label: 'Reciprocal 1/z', expr: '1/z' },
+                    { name: 'log', label: 'Natural Log log(z)', expr: 'log(z)' },
+                    { name: 'circle_inv', label: 'Circle Inversion', expr: '1/conj(z)' },
+                    { name: 'mobius', label: 'Möbius (2z+1)/(z+2)', expr: '(2*z + 1) / (z + 2)' },
+                    { name: 'translation', label: 'Translation z + 2 + i', expr: 'z + 2 + i' },
+                    { name: 'rotation', label: 'Rotation z * e^(iπ/4)', expr: 'z * exp(i * pi / 4)' },
+                    { name: 'reflection', label: 'Reflection conj(z)', expr: 'conj(z)' }
+                ];
+
+                const applyFunction = () => {
+                    parseError.value = null;
+                    try {
+                        const code = math.compile(expressionInput.value);
+                        const testRes = code.evaluate({ z: math.complex(1, 1) });
+                        if (testRes === undefined) throw new Error("Invalid evaluation result.");
+                        
+                        compiledFunc.value = code;
+                        updateLatticeTargets();
+                        startAnimation();
+                    } catch (err) {
+                        parseError.value = err.message || "Failed to parse expression";
+                        console.error(err);
+                    }
+                };
+
+                const selectPreset = (preset) => {
+                    expressionInput.value = preset.expr;
+                    applyFunction();
+                };
+
+                const rebuildLattice = () => {
+                    latticePoints = [];
+                    const res = latticeResolution.value;
+                    const span = gridRange.value;
+                    const step = (span * 2) / res;
+
+                    for (let i = 0; i <= res; i++) {
+                        for (let j = 0; j <= res; j++) {
+                            const x = -span + i * step;
+                            const y = -span + j * step;
+                            latticePoints.push({
+                                x: x,
+                                y: y,
+                                targetX: x,
+                                targetY: y,
+                                valid: true
+                            });
+                        }
+                    }
+                    updateLatticeTargets();
+                    render();
+                };
+
+                const updateLatticeTargets = () => {
+                    if (!compiledFunc.value) return;
+
+                    for (let p of latticePoints) {
+                        try {
+                            const zVal = math.complex(p.x, p.y);
+                            const res = compiledFunc.value.evaluate({ z: zVal });
+                            
+                            let rx, ry;
+                            if (res && typeof res.re === 'number' && typeof res.im === 'number') {
+                                rx = res.re;
+                                ry = res.im;
+                            } else if (typeof res === 'number') {
+                                rx = res;
+                                ry = 0;
+                            } else {
+                                p.valid = false;
+                                continue;
+                            }
+
+                            if (!isFinite(rx) || !isFinite(ry)) {
+                                p.valid = false;
+                            } else {
+                                p.targetX = rx;
+                                p.targetY = ry;
+                                p.valid = true;
+                            }
+                        } catch (e) {
+                            p.valid = false;
+                        }
+                    }
+                };
+
+                // Playback and Animation Loop Control
+                let animId = null;
+                let lastTimestamp = null;
+                const baseDuration = 1500; // ms for full transition
+
+                const animationLoop = (timestamp) => {
+                    if (!lastTimestamp) lastTimestamp = timestamp;
+                    const delta = timestamp - lastTimestamp;
+                    lastTimestamp = timestamp;
+
+                    if (isPlaying.value) {
+                        const increment = (delta / baseDuration) * animSpeed.value;
+                        animProgress.value += increment;
+
+                        if (animProgress.value >= 1.0) {
+                            animProgress.value = 1.0;
+                            isPlaying.value = false;
+                        }
+                    }
+
+                    render();
+
+                    if (isPlaying.value) {
+                        animId = requestAnimationFrame(animationLoop);
+                    } else {
+                        animId = null;
+                        lastTimestamp = null;
+                    }
+                };
+
+                const startAnimation = () => {
+                    animProgress.value = 0.0;
+                    isPlaying.value = true;
+                    if (!animId) {
+                        lastTimestamp = null;
+                        animId = requestAnimationFrame(animationLoop);
+                    }
+                };
+
+                const togglePlayPause = () => {
+                    isPlaying.value = !isPlaying.value;
+                    if (isPlaying.value) {
+                        if (animProgress.value >= 1.0) {
+                            animProgress.value = 0.0;
+                        }
+                        lastTimestamp = null;
+                        if (!animId) animId = requestAnimationFrame(animationLoop);
+                    } else {
+                        if (animId) {
+                            cancelAnimationFrame(animId);
+                            animId = null;
+                        }
+                    }
+                };
+
+                const restartAnimation = () => {
+                    isPlaying.value = false;
+                    if (animId) {
+                        cancelAnimationFrame(animId);
+                        animId = null;
+                    }
+                    animProgress.value = 0.0;
+                    render();
+                    // Start playing
+                    isPlaying.value = true;
+                    lastTimestamp = null;
+                    animId = requestAnimationFrame(animationLoop);
+                };
+
+                const onTimelineScrub = () => {
+                    if (isPlaying.value) {
+                        isPlaying.value = false;
+                        if (animId) {
+                            cancelAnimationFrame(animId);
+                            animId = null;
+                        }
+                    }
+                    render();
+                };
+
+                const resetAll = () => {
+                    sourceView.centerX = 0;
+                    sourceView.centerY = 0;
+                    sourceView.scale = 1;
+                    targetView.centerX = 0;
+                    targetView.centerY = 0;
+                    targetView.scale = 1;
+                    gridRange.value = 4.0;
+                    latticeResolution.value = 30;
+                    rebuildLattice();
+                    restartAnimation();
+                };
+
+                // Canvas rendering engine with dynamic resizing
+                const render = () => {
+                    if (!sourceCanvas.value || !targetCanvas.value) return;
+
+                    const sCanvas = sourceCanvas.value;
+                    const tCanvas = targetCanvas.value;
+
+                    // Match canvas drawing buffer dimensions to actual CSS display dimensions
+                    const sWidth = sCanvas.clientWidth;
+                    const sHeight = sCanvas.clientHeight;
+                    if (sCanvas.width !== sWidth || sCanvas.height !== sHeight) {
+                        sCanvas.width = sWidth;
+                        sCanvas.height = sHeight;
+                    }
+
+                    const tWidth = tCanvas.clientWidth;
+                    const tHeight = tCanvas.clientHeight;
+                    if (tCanvas.width !== tWidth || tCanvas.height !== tHeight) {
+                        tCanvas.width = tWidth;
+                        tCanvas.height = tHeight;
+                    }
+
+                    renderPlane(sourceCtx, sCanvas, sourceView, false);
+                    renderPlane(targetCtx, tCanvas, targetView, true);
+                };
+
+                const renderPlane = (ctx, canvas, view, isTarget) => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    if (width === 0 || height === 0) return;
+
+                    const minDim = Math.min(width, height);
+                    const baseScale = (minDim / (gridRange.value * 2)) * view.scale;
+
+                    const toPixel = (x, y) => ({
+                        px: width / 2 + (x - view.centerX) * baseScale,
+                        py: height / 2 - (y - view.centerY) * baseScale
+                    });
+
+                    // 1. Grid Lines & Axes
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = '10px Inter, monospace';
+
+                    const stepUnit = 1;
+                    const startXCoord = view.centerX - (width / 2) / baseScale;
+                    const endXCoord = view.centerX + (width / 2) / baseScale;
+                    const startYCoord = view.centerY - (height / 2) / baseScale;
+                    const endYCoord = view.centerY + (height / 2) / baseScale;
+
+                    // Vertical grid lines
+                    for (let x = Math.floor(startXCoord); x <= Math.ceil(endXCoord); x += stepUnit) {
+                        const p1 = toPixel(x, startYCoord);
+                        const p2 = toPixel(x, endYCoord);
+                        ctx.beginPath();
+                        ctx.moveTo(p1.px, 0);
+                        ctx.lineTo(p2.px, height);
+                        ctx.stroke();
+
+                        if (x !== 0) {
+                            const lblPos = toPixel(x, 0);
+                            if (lblPos.py >= 10 && lblPos.py <= height - 5) {
+                                ctx.fillText(x.toString(), lblPos.px - 6, Math.min(Math.max(lblPos.py + 14, 15), height - 5));
+                            }
+                        }
+                    }
+
+                    // Horizontal grid lines
+                    for (let y = Math.floor(startYCoord); y <= Math.ceil(endYCoord); y += stepUnit) {
+                        const p1 = toPixel(startXCoord, y);
+                        const p2 = toPixel(endXCoord, y);
+                        ctx.beginPath();
+                        ctx.moveTo(0, p1.py);
+                        ctx.lineTo(width, p2.py);
+                        ctx.stroke();
+
+                        if (y !== 0) {
+                            const lblPos = toPixel(0, y);
+                            if (lblPos.px >= 10 && lblPos.px <= width - 20) {
+                                ctx.fillText(y + 'i', Math.min(Math.max(lblPos.px - 24, 5), width - 25), lblPos.py + 4);
+                            }
+                        }
+                    }
+
+                    // 2. Principal Axes
+                    const origin = toPixel(0, 0);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = '#334155';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, origin.py);
+                    ctx.lineTo(width, origin.py);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(origin.px, 0);
+                    ctx.lineTo(origin.px, height);
+                    ctx.stroke();
+
+                    // 3. Lattice Grid Connecting Lines
+                    const res = latticeResolution.value;
+                    const r = dotRadius.value;
+                    const prog = animProgress.value;
+
+                    // Easing curve for smoothness
+                    const easedProg = prog < 0.5 ? 2 * prog * prog : 1 - Math.pow(-2 * prog + 2, 2) / 2;
+
+                    if (showGridLines.value) {
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = isTarget ? 'rgba(99, 102, 241, 0.22)' : 'rgba(56, 189, 248, 0.18)';
+                        
+                        // Horizontal rows
+                        for (let i = 0; i <= res; i++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let j = 0; j <= res; j++) {
+                                const idx = i * (res + 1) + j;
+                                const pt = latticePoints[idx];
+                                if (!pt || !pt.valid) { started = false; continue; }
+
+                                const currX = isTarget ? (pt.x + (pt.targetX - pt.x) * easedProg) : pt.x;
+                                const currY = isTarget ? (pt.y + (pt.targetY - pt.y) * easedProg) : pt.y;
+                                const px = toPixel(currX, currY);
+
+                                if (!started) {
+                                    ctx.moveTo(px.px, px.py);
+                                    started = true;
+                                } else {
+                                    ctx.lineTo(px.px, px.py);
+                                }
+                            }
+                            ctx.stroke();
+                        }
+
+                        // Vertical columns
+                        for (let j = 0; j <= res; j++) {
+                            ctx.beginPath();
+                            let started = false;
+                            for (let i = 0; i <= res; i++) {
+                                const idx = i * (res + 1) + j;
+                                const pt = latticePoints[idx];
+                                if (!pt || !pt.valid) { started = false; continue; }
+
+                                const currX = isTarget ? (pt.x + (pt.targetX - pt.x) * easedProg) : pt.x;
+                                const currY = isTarget ? (pt.y + (pt.targetY - pt.y) * easedProg) : pt.y;
+                                const px = toPixel(currX, currY);
+
+                                if (!started) {
+                                    ctx.moveTo(px.px, px.py);
+                                    started = true;
+                                } else {
+                                    ctx.lineTo(px.px, px.py);
+                                }
+                            }
+                            ctx.stroke();
+                        }
+                    }
+
+                    // 4. Lattice Dots
+                    for (let pt of latticePoints) {
+                        if (!pt.valid) continue;
+
+                        let cx = pt.x;
+                        let cy = pt.y;
+
+                        if (isTarget) {
+                            cx = pt.x + (pt.targetX - pt.x) * easedProg;
+                            cy = pt.y + (pt.targetY - pt.y) * easedProg;
+                        }
+
+                        const pos = toPixel(cx, cy);
+
+                        if (pos.px < -20 || pos.px > width + 20 || pos.py < -20 || pos.py > height + 20) continue;
+
+                        ctx.beginPath();
+                        ctx.arc(pos.px, pos.py, r, 0, 2 * Math.PI);
+                        
+                        if (isTarget) {
+                            ctx.fillStyle = '#818cf8';
+                            ctx.shadowColor = '#6366f1';
+                            ctx.shadowBlur = 6;
+                        } else {
+                            ctx.fillStyle = '#38bdf8';
+                            ctx.shadowColor = '#0ea5e9';
+                            ctx.shadowBlur = 4;
+                        }
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                };
+
+                const pixelToMath = (px, py, canvas, view) => {
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const minDim = Math.min(width, height);
+                    const baseScale = (minDim / (gridRange.value * 2)) * view.scale;
+
+                    const x = view.centerX + (px - width / 2) / baseScale;
+                    const y = view.centerY - (py - height / 2) / baseScale;
+                    return { x, y };
+                };
+
+                const onSourceMouseDown = (e) => {
+                    isDraggingSource = true;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                };
+
+                const onSourceMouseMove = (e) => {
+                    const canvas = sourceCanvas.value;
+                    const rect = canvas.getBoundingClientRect();
+                    const px = e.clientX - rect.left;
+                    const py = e.clientY - rect.top;
+
+                    const mathCoord = pixelToMath(px, py, canvas, sourceView);
+                    hoveredZ.value = mathCoord;
+
+                    if (compiledFunc.value) {
+                        try {
+                            const res = compiledFunc.value.evaluate({ z: math.complex(mathCoord.x, mathCoord.y) });
+                            if (res && typeof res.re === 'number') {
+                                hoveredW.value = { x: res.re, y: res.im };
+                            }
+                        } catch (err) {
+                            hoveredW.value = null;
+                        }
+                    }
+
+                    if (!isDraggingSource) return;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+
+                    const minDim = Math.min(canvas.width, canvas.height);
+                    const baseScale = (minDim / (gridRange.value * 2)) * sourceView.scale;
+                    sourceView.centerX -= dx / baseScale;
+                    sourceView.centerY += dy / baseScale;
+                    render();
+                };
+
+                const onSourceMouseUp = () => { isDraggingSource = false; };
+
+                const onSourceWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+                    sourceView.scale = Math.max(0.2, Math.min(20, sourceView.scale * zoomFactor));
+                    render();
+                };
+
+                const onTargetMouseDown = (e) => {
+                    isDraggingTarget = true;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+                };
+
+                const onTargetMouseMove = (e) => {
+                    const canvas = targetCanvas.value;
+                    const rect = canvas.getBoundingClientRect();
+                    const px = e.clientX - rect.left;
+                    const py = e.clientY - rect.top;
+
+                    const mathCoord = pixelToMath(px, py, canvas, targetView);
+                    hoveredW.value = mathCoord;
+
+                    if (!isDraggingTarget) return;
+                    const dx = e.clientX - startDragX;
+                    const dy = e.clientY - startDragY;
+                    startDragX = e.clientX;
+                    startDragY = e.clientY;
+
+                    const minDim = Math.min(canvas.width, canvas.height);
+                    const baseScale = (minDim / (gridRange.value * 2)) * targetView.scale;
+                    targetView.centerX -= dx / baseScale;
+                    targetView.centerY += dy / baseScale;
+                    render();
+                };
+
+                const onTargetMouseUp = () => { isDraggingTarget = false; };
+
+                const onTargetWheel = (e) => {
+                    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+                    targetView.scale = Math.max(0.2, Math.min(20, targetView.scale * zoomFactor));
+                    render();
+                };
+
+                const formatComplex = (c) => {
+                    if (!c) return '';
+                    const sign = c.y >= 0 ? '+' : '-';
+                    return `${c.x.toFixed(2)} ${sign} ${Math.abs(c.y).toFixed(2)}i`;
+                };
+
+                onMounted(() => {
+                    sourceCtx = sourceCanvas.value.getContext('2d');
+                    targetCtx = targetCanvas.value.getContext('2d');
+
+                    rebuildLattice();
+                    applyFunction();
+
+                    window.addEventListener('resize', render);
+                });
+
+                onUnmounted(() => {
+                    window.removeEventListener('resize', render);
+                    if (animId) cancelAnimationFrame(animId);
+                });
+
+                return {
+                    expressionInput,
+                    parseError,
+                    animProgress,
+                    isPlaying,
+                    animSpeed,
+                    showInfoModal,
+                    gridRange,
+                    latticeResolution,
+                    dotRadius,
+                    showGridLines,
+                    hoveredZ,
+                    hoveredW,
+                    sourceCanvas,
+                    targetCanvas,
+                    sourceContainer,
+                    targetContainer,
+                    presets,
+                    applyFunction,
+                    selectPreset,
+                    rebuildLattice,
+                    togglePlayPause,
+                    restartAnimation,
+                    onTimelineScrub,
+                    resetAll,
+                    onSourceMouseDown,
+                    onSourceMouseMove,
+                    onSourceMouseUp,
+                    onSourceWheel,
+                    onTargetMouseDown,
+                    onTargetMouseMove,
+                    onTargetMouseUp,
+                    onTargetWheel,
+                    formatComplex,
+                    render
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
